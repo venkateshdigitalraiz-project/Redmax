@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pathway/features/auth/presentation/bloc/auth_state.dart';
-import 'package:pathway/features/carpool/presentation/pages/carpool_home_page.dart';
+import 'package:pathway/features/carpool/presentation/pages/carpool_shell_page.dart';
+import 'package:pathway/features/party_booking/presentation/pages/party_shell_page.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
@@ -40,10 +41,17 @@ class _DashboardShellPageState extends State<DashboardShellPage>
     super.dispose();
   }
 
-  void _onOpenActiveRideDetails() {
+  void _onOpenCarpool() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const CarpoolHomePage()),
+      MaterialPageRoute(builder: (_) => const CarpoolShellPage()),
+    );
+  }
+
+  void _onOpenPartyBooking() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PartyShellPage()),
     );
   }
 
@@ -59,8 +67,9 @@ class _DashboardShellPageState extends State<DashboardShellPage>
 
     final List<Widget> tabs = [
       DashboardHomePage(
-        onOpenCarpool: _onOpenActiveRideDetails,
-        onOpenActiveRide: _onOpenActiveRideDetails,
+        onOpenCarpool: _onOpenCarpool,
+        onOpenPartyBooking: _onOpenPartyBooking,
+        onOpenActiveRide: _onOpenCarpool,
         onSeeAllActivity: () => _onTabTapped(2),
       ),
       _buildServicesTab(isDark),
@@ -256,7 +265,10 @@ class _DashboardShellPageState extends State<DashboardShellPage>
                       service: service,
                       onTap: () {
                         if (service.type == DashboardServiceType.carpool) {
-                          _onOpenActiveRideDetails();
+                          _onOpenCarpool();
+                        } else if (service.type ==
+                            DashboardServiceType.partyBooking) {
+                          _onOpenPartyBooking();
                         } else {
                           _showComingSoonDialog(context, service.title, isDark);
                         }
@@ -293,7 +305,7 @@ class _DashboardShellPageState extends State<DashboardShellPage>
               onSeeAll: () {},
               onActivityTap: (activity) {
                 if (activity.type == ActivityType.carpool) {
-                  _onOpenActiveRideDetails();
+                  _onOpenCarpool();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -520,17 +532,15 @@ class _DashboardShellPageState extends State<DashboardShellPage>
   }) {
     return Material(
       color: isDark ? AppColors.darkCard : Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      clipBehavior: Clip.antiAlias,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isDark ? AppColors.darkBorderLight : const Color(0xFFE2E8F0),
-          ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(
+          color: isDark ? AppColors.darkBorderLight : const Color(0xFFE2E8F0),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
@@ -597,7 +607,6 @@ class _DashboardShellPageState extends State<DashboardShellPage>
             ],
           ],
         ),
-      ),
     );
   }
 

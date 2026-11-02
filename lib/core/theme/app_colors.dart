@@ -9,6 +9,8 @@ class AppColors {
   static const Color primaryDark = Color(0xFF0058C6);
   static const Color primaryLight = Color(0xFF389BFD);
   static const Color primaryNavy = Color(0xFF0F172A);
+  static const Color primaryDeep = Color(0xFF2A1580);
+  static const Color mapBlue = Color(0xFF3D4DE0);
 
   // Dashboard Specific Palette
   static const Color dashboardBlue = Color(0xFF0077F6);
@@ -17,6 +19,7 @@ class AppColors {
   static const Color dashboardTextMuted = Color(0xFF64748B);
   static const Color dashboardTextSubtle = Color(0xFF94A3B8);
   static const Color dashboardBg = Color(0xFFF8FAFC);
+  static const Color navInactive = Color(0xFF8C88AE);
 
   // Brand Accents & Alerts
   static const Color accentCoral = Color(0xFFFF5B4F);
@@ -98,6 +101,9 @@ class AppColors {
   static const Color adminDark = Color(0xFF0B192C);
   static const Color adminCardDark = Color(0xFF1E2E44);
   static const Color adminGold = Color(0xFFFFB800);
+  static const Color lilac = Color(0xFFEAE4FF);
+  static const Color star = Color(0xFFFFB400);
+  static const Color textGrey = Color(0xFF6E6A94);
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
@@ -140,5 +146,31 @@ class AppColors {
     colors: [Color(0xFF0B192C), Color(0xFF1E2E44)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
+  );
+  static const LinearGradient pageGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFE6DFFF), Color(0xFFF8F6FF)],
+  );
+  static const LinearGradient orangeGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFFB13B), adminGold],
+  );
+  static const LinearGradient greenGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFFD6F7BC), Color(0xFF7EDB8B)],
+  );
+  static const LinearGradient premiumGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [primaryDeep, primary],
+  );
+  static const LinearGradient splashGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFE9E1FF), Color(0xFF8E6DF2), primaryDeep],
+    stops: [0.0, 0.55, 1.0],
   );
 }

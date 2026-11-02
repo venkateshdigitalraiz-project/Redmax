@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/dashboard_service_item.dart';
 import '../../domain/entities/recent_activity_entry.dart';
+import '../../../party_booking/presentation/pages/party_shell_page.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../bloc/dashboard_event.dart';
 import '../bloc/dashboard_state.dart';
@@ -18,12 +19,14 @@ import '../widgets/service_grid_card.dart';
 /// 4. Recent Activity section with Carpool Ride (Upcoming) and Delivery Order (Delivered)
 class DashboardHomePage extends StatelessWidget {
   final VoidCallback onOpenCarpool;
+  final VoidCallback? onOpenPartyBooking;
   final VoidCallback? onOpenActiveRide;
   final VoidCallback? onSeeAllActivity;
 
   const DashboardHomePage({
     super.key,
     required this.onOpenCarpool,
+    this.onOpenPartyBooking,
     this.onOpenActiveRide,
     this.onSeeAllActivity,
   });
@@ -150,6 +153,18 @@ class DashboardHomePage extends StatelessWidget {
                           onTap: () {
                             if (service.type == DashboardServiceType.carpool) {
                               onOpenCarpool();
+                            } else if (service.type ==
+                                DashboardServiceType.partyBooking) {
+                              if (onOpenPartyBooking != null) {
+                                onOpenPartyBooking!();
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const PartyShellPage(),
+                                  ),
+                                );
+                              }
                             } else {
                               _showServiceDialog(
                                 context,

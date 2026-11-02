@@ -1,13 +1,15 @@
-import '../entities/carpool_ride.dart';
+import '../entities/carpool_entities.dart';
 
-/// Abstract repository contract for Carpool feature.
+/// Contract implemented by the data layer. The domain never depends on data.
 abstract class CarpoolRepository {
-  /// Fetches all available carpool rides.
-  Future<List<CarpoolRide>> getAvailableRides();
-
-  /// Searches rides by [query] (matches origin or destination).
-  Future<List<CarpoolRide>> searchRides(String query);
-
-  /// Books the ride with [rideId]. Returns the booked ride id on success.
-  Future<String> bookRide(String rideId);
+  Future<CarpoolUserEntity> getUser();
+  Future<List<CarpoolPopularRouteEntity>> getPopularRoutes();
+  Future<List<CarpoolRideEntity>> searchRides(CarpoolSearchRidesParams params);
+  Future<void> bookRide(String rideId);
+  Future<CarpoolRideEntity> publishRide(CarpoolPublishRideParams params);
+  Future<List<CarpoolRideEntity>> getMyRides();
+  Future<void> cancelRide(String rideId);
+  Future<CarpoolWalletEntity> getWallet();
+  Future<CarpoolWalletEntity> addMoney(double amount);
+  Future<List<CarpoolMessageEntity>> getMessages();
 }

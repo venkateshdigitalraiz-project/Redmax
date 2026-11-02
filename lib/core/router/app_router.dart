@@ -6,13 +6,17 @@ import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
 import '../../features/auth/presentation/pages/auth_welcome_page.dart';
 import '../../features/auth/presentation/pages/name_input_page.dart';
+import '../../features/carpool/presentation/pages/carpool_shell_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_shell_page.dart';
+import '../../features/party_booking/presentation/pages/party_shell_page.dart';
 
 /// Centralized route constants for type-safe and consistent navigation
 class AppRoutes {
   static const String splash = '/splash';
   static const String welcome = '/welcome';
   static const String nameInput = '/name-input';
+  static const String carpool = '/carpool';
+  static const String party = '/party';
   static const String main = '/';
 }
 
@@ -100,6 +104,16 @@ class AppRouter {
           path: AppRoutes.main,
           name: 'main',
           builder: (context, state) => const DashboardShellPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.carpool,
+          name: 'carpool',
+          builder: (context, state) => const CarpoolShellPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.party,
+          name: 'party',
+          builder: (context, state) => const PartyShellPage(),
         ),
       ],
       errorBuilder: (context, state) => Scaffold(

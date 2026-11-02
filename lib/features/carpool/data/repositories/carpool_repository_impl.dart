@@ -1,22 +1,43 @@
-import '../../domain/entities/carpool_ride.dart';
+import '../../domain/entities/carpool_entities.dart';
 import '../../domain/repositories/carpool_repository.dart';
-import '../datasources/carpool_remote_datasource.dart';
+import '../datasources/carpool_remote_data_source.dart';
 
-/// Concrete implementation of [CarpoolRepository] using [CarpoolRemoteDataSource].
 class CarpoolRepositoryImpl implements CarpoolRepository {
-  final CarpoolRemoteDataSource remoteDataSource;
-
-  const CarpoolRepositoryImpl({required this.remoteDataSource});
-
-  @override
-  Future<List<CarpoolRide>> getAvailableRides() =>
-      remoteDataSource.fetchAvailableRides();
+  const CarpoolRepositoryImpl(this._remote);
+  final CarpoolRemoteDataSource _remote;
 
   @override
-  Future<List<CarpoolRide>> searchRides(String query) =>
-      remoteDataSource.searchRides(query);
+  Future<CarpoolUserEntity> getUser() => _remote.fetchUser();
 
   @override
-  Future<String> bookRide(String rideId) =>
-      remoteDataSource.bookRide(rideId);
+  Future<List<CarpoolPopularRouteEntity>> getPopularRoutes() =>
+      _remote.fetchPopularRoutes();
+
+  @override
+  Future<List<CarpoolRideEntity>> searchRides(
+          CarpoolSearchRidesParams params) =>
+      _remote.searchRides(params);
+
+  @override
+  Future<void> bookRide(String rideId) => _remote.bookRide(rideId);
+
+  @override
+  Future<CarpoolRideEntity> publishRide(CarpoolPublishRideParams params) =>
+      _remote.publishRide(params);
+
+  @override
+  Future<List<CarpoolRideEntity>> getMyRides() => _remote.fetchMyRides();
+
+  @override
+  Future<void> cancelRide(String rideId) => _remote.cancelRide(rideId);
+
+  @override
+  Future<CarpoolWalletEntity> getWallet() => _remote.fetchWallet();
+
+  @override
+  Future<CarpoolWalletEntity> addMoney(double amount) =>
+      _remote.addMoney(amount);
+
+  @override
+  Future<List<CarpoolMessageEntity>> getMessages() => _remote.fetchMessages();
 }
