@@ -28,17 +28,36 @@ class CarpoolUserModel extends CarpoolUserEntity {
 }
 
 class CarpoolPopularRouteModel extends CarpoolPopularRouteEntity {
-  const CarpoolPopularRouteModel(
-      {required super.from, required super.to, required super.price});
+  const CarpoolPopularRouteModel({
+    required super.from,
+    required super.to,
+    required super.price,
+    super.fromLat,
+    super.fromLng,
+    super.toLat,
+    super.toLng,
+  });
 
   factory CarpoolPopularRouteModel.fromJson(Map<String, dynamic> json) =>
       CarpoolPopularRouteModel(
         from: json['from'] as String,
         to: json['to'] as String,
         price: json['price'] as int,
+        fromLat: (json['fromLat'] as num?)?.toDouble(),
+        fromLng: (json['fromLng'] as num?)?.toDouble(),
+        toLat: (json['toLat'] as num?)?.toDouble(),
+        toLng: (json['toLng'] as num?)?.toDouble(),
       );
 
-  Map<String, dynamic> toJson() => {'from': from, 'to': to, 'price': price};
+  Map<String, dynamic> toJson() => {
+        'from': from,
+        'to': to,
+        'price': price,
+        if (fromLat != null) 'fromLat': fromLat,
+        if (fromLng != null) 'fromLng': fromLng,
+        if (toLat != null) 'toLat': toLat,
+        if (toLng != null) 'toLng': toLng,
+      };
 }
 
 class CarpoolRideModel extends CarpoolRideEntity {

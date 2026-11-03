@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // Primary Colors
+  // Primary Colors   Color(0xFF240DA2)
   static const Color primary = Color(0xFF0077F6);
   static const Color primaryDark = Color(0xFF0058C6);
   static const Color primaryLight = Color(0xFF389BFD);
@@ -107,9 +107,9 @@ class AppColors {
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF0066EB), Color(0xFF0077F6), Color(0xFF2E90FA)],
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF5428E8), Color(0xFF240DA2)],
   );
 
   static const LinearGradient headerWaveGradient = LinearGradient(
@@ -150,7 +150,12 @@ class AppColors {
   static const LinearGradient pageGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFE6DFFF), Color(0xFFF8F6FF)],
+    colors: [
+      Color(0xFFEDE8FF),
+      Color(0xFFF7F5FE),
+      Color(0xFFFFFFFF),
+    ],
+    stops: [0.0, 0.35, 1.0],
   );
   static const LinearGradient orangeGradient = LinearGradient(
     begin: Alignment.topLeft,
@@ -158,10 +163,18 @@ class AppColors {
     colors: [Color(0xFFFFB13B), adminGold],
   );
   static const LinearGradient greenGradient = LinearGradient(
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-    colors: [Color(0xFFD6F7BC), Color(0xFF7EDB8B)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFD2F8CA), Color(0xFFB0F2A3), Color(0xFF8CEB76)],
+    stops: [0.0, 0.50, 1.0],
   );
+  static const LinearGradient goGreenGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF8CEB76), Color(0xFFB0F2A3), Color(0xFFD2F8CA)],
+    stops: [0.0, 0.50, 1.0],
+  );
+
   static const LinearGradient premiumGradient = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,

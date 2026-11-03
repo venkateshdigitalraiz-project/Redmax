@@ -16,6 +16,29 @@ class CarpoolHomeStarted extends CarpoolHomeEvent {
   const CarpoolHomeStarted();
 }
 
+class CarpoolHomeRouteAdded extends CarpoolHomeEvent {
+  final String from;
+  final String to;
+  final int price;
+  final double? fromLat;
+  final double? fromLng;
+  final double? toLat;
+  final double? toLng;
+
+  const CarpoolHomeRouteAdded({
+    required this.from,
+    required this.to,
+    required this.price,
+    this.fromLat,
+    this.fromLng,
+    this.toLat,
+    this.toLng,
+  });
+
+  @override
+  List<Object?> get props => [from, to, price, fromLat, fromLng, toLat, toLng];
+}
+
 class CarpoolHomeState extends Equatable {
   const CarpoolHomeState({
     this.status = CarpoolStatus.initial,
@@ -53,6 +76,30 @@ class CarpoolHomeBloc extends Bloc<CarpoolHomeEvent, CarpoolHomeState> {
        _getPopularRoutes = getPopularRoutes,
        super(const CarpoolHomeState()) {
     on<CarpoolHomeStarted>(_onStarted);
+    on<CarpoolHomeRouteAdded>(_onRouteAdded);
+  }
+
+  void _onRouteAdded(
+    CarpoolHomeRouteAdded event,
+    Emitter<CarpoolHomeState> emit,
+  ) {
+    final newRoute = CarpoolPopularRouteEntity(
+      from: event.from,
+      to: event.to,
+      price: event.price,
+      fromLat: event.fromLat,
+      fromLng: event.fromLng,
+      toLat: event.toLat,
+      toLng: event.toLng,
+    );
+    final updatedRoutes = [
+      newRoute,
+      ...state.routes.where(
+        (r) => !(r.from.toLowerCase() == event.from.toLowerCase() &&
+            r.to.toLowerCase() == event.to.toLowerCase()),
+      ),
+    ];
+    emit(state.copyWith(routes: updatedRoutes));
   }
 
   final CarpoolGetUserUseCase _getUser;

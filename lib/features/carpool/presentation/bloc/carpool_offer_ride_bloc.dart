@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/utils/carpool_distance_calculator.dart';
 import '../../../../core/utils/carpool_status.dart';
 import '../../domain/entities/carpool_entities.dart';
 import '../../domain/usecases/carpool_usecases.dart';
@@ -12,17 +13,23 @@ abstract class CarpoolOfferRideEvent extends Equatable {
 }
 
 class CarpoolOfferFromChanged extends CarpoolOfferRideEvent {
-  const CarpoolOfferFromChanged(this.value);
+  const CarpoolOfferFromChanged(this.value, {this.lat, this.lng});
   final String value;
+  final double? lat;
+  final double? lng;
+
   @override
-  List<Object?> get props => [value];
+  List<Object?> get props => [value, lat, lng];
 }
 
 class CarpoolOfferToChanged extends CarpoolOfferRideEvent {
-  const CarpoolOfferToChanged(this.value);
+  const CarpoolOfferToChanged(this.value, {this.lat, this.lng});
   final String value;
+  final double? lat;
+  final double? lng;
+
   @override
-  List<Object?> get props => [value];
+  List<Object?> get props => [value, lat, lng];
 }
 
 class CarpoolOfferSwapPressed extends CarpoolOfferRideEvent {
@@ -62,11 +69,19 @@ class CarpoolOfferPublishPressed extends CarpoolOfferRideEvent {
   const CarpoolOfferPublishPressed();
 }
 
+class CarpoolOfferResetStatus extends CarpoolOfferRideEvent {
+  const CarpoolOfferResetStatus();
+}
+
 class CarpoolOfferRideState extends Equatable {
   const CarpoolOfferRideState({
     required this.from,
     required this.to,
     required this.departure,
+    this.fromLat = 17.3850,
+    this.fromLng = 78.4867,
+    this.toLat = 16.5062,
+    this.toLng = 80.6480,
     this.seats = 3,
     this.rideType = CarpoolRideType.normal,
     this.status = CarpoolStatus.initial,
@@ -78,13 +93,21 @@ class CarpoolOfferRideState extends Equatable {
     final n = DateTime.now();
     return CarpoolOfferRideState(
       from: 'Hyderabad',
+      fromLat: 17.3850,
+      fromLng: 78.4867,
       to: 'Vijayawada',
+      toLat: 16.5062,
+      toLng: 80.6480,
       departure: DateTime(n.year, n.month, n.day, 9),
     );
   }
 
   final String from;
   final String to;
+  final double fromLat;
+  final double fromLng;
+  final double toLat;
+  final double toLng;
   final DateTime departure;
   final int seats;
   final CarpoolRideType rideType;
@@ -101,6 +124,10 @@ class CarpoolOfferRideState extends Equatable {
   CarpoolOfferRideState copyWith({
     String? from,
     String? to,
+    double? fromLat,
+    double? fromLng,
+    double? toLat,
+    double? toLng,
     DateTime? departure,
     int? seats,
     CarpoolRideType? rideType,
@@ -111,6 +138,10 @@ class CarpoolOfferRideState extends Equatable {
       CarpoolOfferRideState(
         from: from ?? this.from,
         to: to ?? this.to,
+        fromLat: fromLat ?? this.fromLat,
+        fromLng: fromLng ?? this.fromLng,
+        toLat: toLat ?? this.toLat,
+        toLng: toLng ?? this.toLng,
         departure: departure ?? this.departure,
         seats: seats ?? this.seats,
         rideType: rideType ?? this.rideType,
@@ -120,8 +151,20 @@ class CarpoolOfferRideState extends Equatable {
       );
 
   @override
-  List<Object?> get props =>
-      [from, to, departure, seats, rideType, status, publishedRide, error];
+  List<Object?> get props => [
+        from,
+        to,
+        fromLat,
+        fromLng,
+        toLat,
+        toLng,
+        departure,
+        seats,
+        rideType,
+        status,
+        publishedRide,
+        error,
+      ];
 }
 
 class CarpoolOfferRideBloc
@@ -129,10 +172,13 @@ class CarpoolOfferRideBloc
   CarpoolOfferRideBloc({required CarpoolPublishRideUseCase publishRide})
       : _publishRide = publishRide,
         super(CarpoolOfferRideState.initial()) {
-    on<CarpoolOfferFromChanged>((e, emit) => emit(state.copyWith(from: e.value)));
-    on<CarpoolOfferToChanged>((e, emit) => emit(state.copyWith(to: e.value)));
-    on<CarpoolOfferSwapPressed>(
-        (e, emit) => emit(state.copyWith(from: state.to, to: state.from)));
+    on<CarpoolOfferFromChanged>(_onFromChanged);
+    on<CarpoolOfferToChanged>(_onToChanged);
+    on<CarpoolOfferSwapPressed>(_onSwapPressed);
+    on<CarpoolOfferResetStatus>((e, emit) => emit(state.copyWith(
+          status: CarpoolStatus.initial,
+          error: null,
+        )));
     on<CarpoolOfferDateChanged>((e, emit) {
       final d = state.departure;
       emit(state.copyWith(
@@ -152,6 +198,60 @@ class CarpoolOfferRideBloc
   }
 
   final CarpoolPublishRideUseCase _publishRide;
+
+  void _onFromChanged(
+    CarpoolOfferFromChanged event,
+    Emitter<CarpoolOfferRideState> emit,
+  ) {
+    final geo = (event.lat != null && event.lng != null)
+        ? null
+        : CarpoolDistanceCalculator.findGeo(event.value);
+    final lat = event.lat ?? geo?.lat ?? state.fromLat;
+    final lng = event.lng ?? geo?.lng ?? state.fromLng;
+
+    emit(state.copyWith(
+      from: event.value,
+      fromLat: lat,
+      fromLng: lng,
+      status: CarpoolStatus.initial,
+      error: null,
+    ));
+  }
+
+  void _onToChanged(
+    CarpoolOfferToChanged event,
+    Emitter<CarpoolOfferRideState> emit,
+  ) {
+    final geo = (event.lat != null && event.lng != null)
+        ? null
+        : CarpoolDistanceCalculator.findGeo(event.value);
+    final lat = event.lat ?? geo?.lat ?? state.toLat;
+    final lng = event.lng ?? geo?.lng ?? state.toLng;
+
+    emit(state.copyWith(
+      to: event.value,
+      toLat: lat,
+      toLng: lng,
+      status: CarpoolStatus.initial,
+      error: null,
+    ));
+  }
+
+  void _onSwapPressed(
+    CarpoolOfferSwapPressed event,
+    Emitter<CarpoolOfferRideState> emit,
+  ) {
+    emit(state.copyWith(
+      from: state.to,
+      to: state.from,
+      fromLat: state.toLat,
+      fromLng: state.toLng,
+      toLat: state.fromLat,
+      toLng: state.fromLng,
+      status: CarpoolStatus.initial,
+      error: null,
+    ));
+  }
 
   Future<void> _onPublish(CarpoolOfferPublishPressed event,
       Emitter<CarpoolOfferRideState> emit) async {

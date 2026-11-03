@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pathway/core/utils/carpool_distance_calculator.dart';
 
 import '../../data/datasources/carpool_mock_data_source.dart';
 import '../../data/repositories/carpool_repository_impl.dart';
 import '../../domain/entities/carpool_entities.dart';
 import '../../domain/usecases/carpool_usecases.dart';
 import '../bloc/carpool_find_ride_bloc.dart';
+import '../widgets/carpool_route_selector_card.dart';
+import '../widgets/real_google_map_preview.dart';
 
 /// CarpoolFindRidePage - Matches screenshot design:
 /// 1. Lavender gradient background.
@@ -206,7 +209,51 @@ class _FindRideViewState extends State<_FindRideView> {
                         _GoogleMapRouteCard(
                           from: state.from,
                           to: state.to,
+                          fromLat: state.fromLat,
+                          fromLng: state.fromLng,
+                          toLat: state.toLat,
+                          toLng: state.toLng,
                           distanceKm: state.distanceKm,
+                          onFromTap: () async {
+                            final v = await carpoolSelectLocation(
+                              context,
+                              title: 'Search Pickup Location',
+                              initialValue: state.from,
+                              isPickup: true,
+                            );
+                            if (v != null && v.name.trim().isNotEmpty) {
+                              context.read<CarpoolFindRideBloc>().add(
+                                CarpoolFindRideRouteSelected(
+                                  v.name.trim(),
+                                  state.to,
+                                  fromLat: v.lat,
+                                  fromLng: v.lng,
+                                  toLat: state.toLat,
+                                  toLng: state.toLng,
+                                ),
+                              );
+                            }
+                          },
+                          onToTap: () async {
+                            final v = await carpoolSelectLocation(
+                              context,
+                              title: 'Search Drop Location',
+                              initialValue: state.to,
+                              isPickup: false,
+                            );
+                            if (v != null && v.name.trim().isNotEmpty) {
+                              context.read<CarpoolFindRideBloc>().add(
+                                CarpoolFindRideRouteSelected(
+                                  state.from,
+                                  v.name.trim(),
+                                  fromLat: state.fromLat,
+                                  fromLng: state.fromLng,
+                                  toLat: v.lat,
+                                  toLng: v.lng,
+                                ),
+                              );
+                            }
+                          },
                         ),
 
                         const SizedBox(height: 16),
@@ -312,22 +359,34 @@ class _FilterPill extends StatelessWidget {
   }
 }
 
-/// Google Maps Route Card matching the exact screenshot
+/// Google Maps Route Card powered by RealGoogleMapPreview
 class _GoogleMapRouteCard extends StatelessWidget {
   final String from;
   final String to;
+  final double? fromLat;
+  final double? fromLng;
+  final double? toLat;
+  final double? toLng;
   final int distanceKm;
+  final VoidCallback? onFromTap;
+  final VoidCallback? onToTap;
 
   const _GoogleMapRouteCard({
     required this.from,
     required this.to,
+    this.fromLat,
+    this.fromLng,
+    this.toLat,
+    this.toLng,
     required this.distanceKm,
+    this.onFromTap,
+    this.onToTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 220,
+      height: 250,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -342,394 +401,133 @@ class _GoogleMapRouteCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final w = constraints.maxWidth;
-            final h = constraints.maxHeight;
-
-            // Pin Tip Anchors matching the exact route start and end points
-            final startAnchor = Offset(w * 0.22, h * 0.33);
-            final endAnchor = Offset(w * 0.82, h * 0.68);
-
-            return Stack(
-              children: [
-                // 1. Authentic Google Maps Styled Canvas (Terrain, Roads, River & NH65 Polyline)
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _GoogleMapCanvasPainter(
-                      startPt: startAnchor,
-                      endPt: endAnchor,
-                    ),
-                  ),
+        child: Stack(
+          children: [
+            // 1. Slippy Real Google Map with Route Polyline, Google Pins & Zoom Controls
+            Positioned.fill(
+              child: RealGoogleMapPreview(
+                from: from,
+                to: to,
+                fromLat: fromLat,
+                fromLng: fromLng,
+                toLat: toLat,
+                toLng: toLng,
+                distanceKm: distanceKm,
+                durationText: CarpoolDistanceCalculator.estimateDuration(
+                  distanceKm,
                 ),
+                isCompact: true,
+              ),
+            ),
 
-                // 2. Floating Distance Badge (~ 275 km)
-                Positioned(
-                  top: h * 0.16,
-                  left: w * 0.44,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.14),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      '~ $distanceKm km',
-                      style: const TextStyle(
-                        color: Color(0xFF140D43),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ),
+            // 2. Interactive Route Locations Bar (Bottom Card with quick tap-to-change)
+            Positioned(
+              left: 10,
+              right: 10,
+              bottom: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
                 ),
-
-                // 3. Hyderabad Pin (Blue Pin - Needle tip aligned at startAnchor)
-                Positioned(
-                  left: startAnchor.dx - 16,
-                  top: startAnchor.dy - 36,
-                  child: const _GoogleMapPin(
-                    pinColor: Color(0xFF1A56DB),
-                    shadowColor: Color(0x551A56DB),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.96),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFFEDE8FF),
+                    width: 1.2,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-
-                // Hyderabad Label (Directly below the pin tip)
-                Positioned(
-                  left: startAnchor.dx - 55,
-                  top: startAnchor.dy + 3,
-                  width: 110,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.90),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        from,
-                        style: const TextStyle(
-                          color: Color(0xFF140D43),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          letterSpacing: -0.2,
+                child: Row(
+                  children: [
+                    // From chip
+                    Expanded(
+                      child: InkWell(
+                        onTap: onFromTap,
+                        borderRadius: BorderRadius.circular(10),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF1976D2),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                from,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF140D43),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                ),
-
-                // 4. Vijayawada Pin (Red Pin - Needle tip aligned at endAnchor)
-                Positioned(
-                  left: endAnchor.dx - 16,
-                  top: endAnchor.dy - 36,
-                  child: const _GoogleMapPin(
-                    pinColor: Color(0xFFE53935),
-                    shadowColor: Color(0x55E53935),
-                  ),
-                ),
-
-                // Vijayawada Label (Directly below the pin tip)
-                Positioned(
-                  left: endAnchor.dx - 60,
-                  top: endAnchor.dy + 3,
-                  width: 120,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 14,
+                        color: Color(0xFF6B658C),
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.90),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        to,
-                        style: const TextStyle(
-                          color: Color(0xFF140D43),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          letterSpacing: -0.2,
+                    ),
+                    // To chip
+                    Expanded(
+                      child: InkWell(
+                        onTap: onToTap,
+                        borderRadius: BorderRadius.circular(10),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_rounded,
+                              size: 14,
+                              color: Color(0xFFD93025),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                to,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF140D43),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-
-                // 5. Subtle "Google" Watermark in bottom-left corner
-                Positioned(
-                  left: 10,
-                  bottom: 6,
-                  child: Text(
-                    'Google',
-                    style: TextStyle(
-                      fontFamily: 'Roboto',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF6B658C).withOpacity(0.40),
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Classic Google Maps Teardrop Location Pin
-class _GoogleMapPin extends StatelessWidget {
-  final Color pinColor;
-  final Color shadowColor;
 
-  const _GoogleMapPin({required this.pinColor, required this.shadowColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 32,
-      height: 38,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          // Soft pin shadow underneath
-          Transform.translate(
-            offset: const Offset(0, 3),
-            child: Icon(
-              Icons.location_on_rounded,
-              color: shadowColor,
-              size: 38,
-            ),
-          ),
-          // Colored Teardrop Pin
-          Icon(Icons.location_on_rounded, color: pinColor, size: 36),
-          // White Center Dot
-          Positioned(
-            top: 7,
-            child: Container(
-              width: 9,
-              height: 9,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Vector Painter rendering authentic Google Maps terrain, roads, and highway route
-class _GoogleMapCanvasPainter extends CustomPainter {
-  final Offset startPt;
-  final Offset endPt;
-
-  const _GoogleMapCanvasPainter({required this.startPt, required this.endPt});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // 1. Google Maps base ivory/pale terrain background
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = const Color(0xFFF4F3ED),
-    );
-
-    // 2. Soft Green Field & Forest polygons (Telangana/Andhra countryside)
-    final greenPaint1 = Paint()..color = const Color(0xFFD8EED1);
-    final greenPaint2 = Paint()..color = const Color(0xFFE4F4DE);
-    final greenPaint3 = Paint()..color = const Color(0xFFCEE8C4);
-
-    // Green patch top left
-    final p1 = Path()
-      ..moveTo(0, 0)
-      ..lineTo(w * 0.44, 0)
-      ..quadraticBezierTo(w * 0.36, h * 0.28, w * 0.18, h * 0.36)
-      ..quadraticBezierTo(w * 0.05, h * 0.42, 0, h * 0.30)
-      ..close();
-    canvas.drawPath(p1, greenPaint1);
-
-    // Green patch top right
-    final p2 = Path()
-      ..moveTo(w * 0.55, 0)
-      ..lineTo(w, 0)
-      ..lineTo(w, h * 0.48)
-      ..quadraticBezierTo(w * 0.85, h * 0.38, w * 0.72, h * 0.24)
-      ..quadraticBezierTo(w * 0.62, h * 0.10, w * 0.55, 0)
-      ..close();
-    canvas.drawPath(p2, greenPaint2);
-
-    // Green patch bottom left
-    final p3 = Path()
-      ..moveTo(0, h * 0.48)
-      ..quadraticBezierTo(w * 0.20, h * 0.52, w * 0.28, h * 0.80)
-      ..lineTo(w * 0.24, h)
-      ..lineTo(0, h)
-      ..close();
-    canvas.drawPath(p3, greenPaint2);
-
-    // Green patch center bottom
-    final p4 = Path()
-      ..moveTo(w * 0.32, h)
-      ..quadraticBezierTo(w * 0.40, h * 0.62, w * 0.60, h * 0.68)
-      ..quadraticBezierTo(w * 0.75, h * 0.76, w * 0.86, h)
-      ..close();
-    canvas.drawPath(p4, greenPaint1);
-
-    // Organic greenery patches
-    canvas.drawOval(
-      Rect.fromLTWH(w * 0.42, h * 0.10, w * 0.16, h * 0.16),
-      greenPaint3,
-    );
-    canvas.drawOval(
-      Rect.fromLTWH(w * 0.08, h * 0.65, w * 0.16, h * 0.22),
-      greenPaint3,
-    );
-
-    // 3. Water stream (Krishna / Musi River stream)
-    final waterPaint = Paint()
-      ..color = const Color(0xFFD0E4FF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round;
-
-    final riverPath = Path()
-      ..moveTo(w * 0.10, 0)
-      ..quadraticBezierTo(w * 0.18, h * 0.25, w * 0.12, h * 0.55)
-      ..quadraticBezierTo(w * 0.05, h * 0.75, w * 0.15, h);
-    canvas.drawPath(riverPath, waterPaint);
-
-    // 4. Subtle Google Maps Local & Secondary Roads (White with faint borders)
-    final roadBorder = Paint()
-      ..color = const Color(0xFFE2E0D8)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.0;
-
-    final roadSurface = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.8;
-
-    final roads = [
-      // Diagonal road from top-left to bottom-right
-      Path()
-        ..moveTo(0, h * 0.18)
-        ..quadraticBezierTo(w * 0.35, h * 0.22, w * 0.65, h * 0.85)
-        ..lineTo(w * 0.75, h),
-      // Horizontal cross road
-      Path()
-        ..moveTo(0, h * 0.62)
-        ..quadraticBezierTo(w * 0.45, h * 0.58, w, h * 0.35),
-      // Vertical road
-      Path()
-        ..moveTo(w * 0.38, 0)
-        ..quadraticBezierTo(w * 0.32, h * 0.45, w * 0.45, h),
-      // East road
-      Path()
-        ..moveTo(w * 0.70, 0)
-        ..quadraticBezierTo(w * 0.78, h * 0.50, w, h * 0.82),
-    ];
-
-    for (final r in roads) {
-      canvas.drawPath(r, roadBorder);
-      canvas.drawPath(r, roadSurface);
-    }
-
-    // Yellow State Highway
-    final yellowHighway = Paint()
-      ..color = const Color(0xFFFFE082)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    final stateHwy = Path()
-      ..moveTo(w * 0.20, 0)
-      ..quadraticBezierTo(w * 0.45, h * 0.32, w, h * 0.50);
-    canvas.drawPath(stateHwy, yellowHighway);
-
-    // 5. Active Google Maps Highway Route (NH65: Hyderabad -> Vijayawada)
-    // Connecting startPt and endPt with realistic highway segments
-    final routePath = Path()
-      ..moveTo(startPt.dx, startPt.dy)
-      ..lineTo(w * 0.27, h * 0.32)
-      ..lineTo(w * 0.33, h * 0.35)
-      ..lineTo(w * 0.40, h * 0.38)
-      ..lineTo(w * 0.48, h * 0.45)
-      ..lineTo(w * 0.56, h * 0.51)
-      ..lineTo(w * 0.65, h * 0.57)
-      ..lineTo(w * 0.74, h * 0.63)
-      ..lineTo(endPt.dx, endPt.dy);
-
-    // Outer dark-blue casing for high definition
-    final routeCasing = Paint()
-      ..color = const Color(0xFF0F3182)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(routePath, routeCasing);
-
-    // Main vibrant Google Maps Royal Blue Route line
-    final routeLine = Paint()
-      ..color = const Color(0xFF1A56DB)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(routePath, routeLine);
-
-    // Highway Directional Waypoint Dots
-    final dotPaint = Paint()..color = Colors.white;
-    for (final metric in routePath.computeMetrics()) {
-      final len = metric.length;
-      for (double d = len * 0.18; d < len * 0.88; d += len * 0.20) {
-        final tangent = metric.getTangentForOffset(d);
-        if (tangent != null) {
-          canvas.drawCircle(tangent.position, 2.0, dotPaint);
-        }
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _GoogleMapCanvasPainter old) =>
-      old.startPt != startPt || old.endPt != endPt;
-}
 
 /// Ride Card matching screenshot precisely
 class _RideCard extends StatelessWidget {

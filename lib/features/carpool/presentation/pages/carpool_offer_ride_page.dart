@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pathway/core/utils/carpool_distance_calculator.dart';
 import 'package:pathway/core/utils/carpool_formatters.dart';
 
 import '../../data/datasources/carpool_mock_data_source.dart';
 import '../../data/repositories/carpool_repository_impl.dart';
 import '../../domain/entities/carpool_entities.dart';
 import '../../domain/usecases/carpool_usecases.dart';
+import '../bloc/carpool_home_bloc.dart';
+import '../bloc/carpool_nav_cubit.dart';
 import '../bloc/carpool_offer_ride_bloc.dart';
 import 'carpool_publish_ride_page.dart';
+import 'rapido_place_search_page.dart';
+import '../widgets/carpool_route_selector_card.dart';
 
 /// Screen "Offer a Ride" matching the exact design screenshot:
 /// 1. Top bar with clean back button, "Offer a Ride" title, and tune icon.
@@ -274,8 +279,8 @@ class _OfferRideView extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       gradient: const LinearGradient(
                                         colors: [
-                                          Color(0xFF6F35FF),
-                                          Color(0xFF3815D8),
+                                          Color(0xFF5428E8),
+                                          Color(0xFF240DA2),
                                         ],
                                       ),
                                       borderRadius: BorderRadius.circular(20),
@@ -365,193 +370,28 @@ class _OfferRideView extends StatelessWidget {
                             ),
                             child: Column(
                               children: [
-                                // From Row + Swap Button Overlay
-                                Stack(
-                                  alignment: Alignment.centerRight,
-                                  children: [
-                                    Column(
-                                      children: [
-                                        // "From" Row
-                                        InkWell(
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                          onTap: () async {
-                                            final v = await carpoolAskText(
-                                              context,
-                                              'From',
-                                              s.from,
-                                            );
-                                            if (v != null && v.isNotEmpty) {
-                                              bloc.add(
-                                                CarpoolOfferFromChanged(v),
-                                              );
-                                            }
-                                          },
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 10,
-                                              horizontal: 4,
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.location_on_rounded,
-                                                  color: Color(0xFF2E15D0),
-                                                  size: 28,
-                                                ),
-                                                const SizedBox(width: 14),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      const Text(
-                                                        'From',
-                                                        style: TextStyle(
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                          color: Color(
-                                                            0xFF6B658C,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(height: 2),
-                                                      Text(
-                                                        s.from,
-                                                        style: const TextStyle(
-                                                          fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.w800,
-                                                          color: Color(
-                                                            0xFF140D43,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 44),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-
-                                        const Divider(
-                                          height: 1,
-                                          thickness: 1,
-                                          color: Color(0xFFF1EEFC),
-                                        ),
-
-                                        // "To" Row
-                                        InkWell(
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                          onTap: () async {
-                                            final v = await carpoolAskText(
-                                              context,
-                                              'To',
-                                              s.to,
-                                            );
-                                            if (v != null && v.isNotEmpty) {
-                                              bloc.add(
-                                                CarpoolOfferToChanged(v),
-                                              );
-                                            }
-                                          },
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 10,
-                                              horizontal: 4,
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.location_on_rounded,
-                                                  color: Color(0xFFEF4444),
-                                                  size: 28,
-                                                ),
-                                                const SizedBox(width: 14),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      const Text(
-                                                        'To',
-                                                        style: TextStyle(
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                          color: Color(
-                                                            0xFF6B658C,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(height: 2),
-                                                      Text(
-                                                        s.to,
-                                                        style: const TextStyle(
-                                                          fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.w800,
-                                                          color: Color(
-                                                            0xFF140D43,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 44),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-
-                                    // Circular Swap Button floating on right
-                                    Positioned(
-                                      right: 2,
-                                      child: GestureDetector(
-                                        onTap: () => bloc.add(
-                                          const CarpoolOfferSwapPressed(),
-                                        ),
-                                        behavior: HitTestBehavior.opaque,
-                                        child: Container(
-                                          width: 42,
-                                          height: 42,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: const Color(0xFFEBE6FC),
-                                            border: Border.all(
-                                              color: Colors.white,
-                                              width: 2,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: const Color(
-                                                  0xFF5B3BF5,
-                                                ).withOpacity(0.12),
-                                                blurRadius: 8,
-                                                offset: const Offset(0, 3),
-                                              ),
-                                            ],
-                                          ),
-                                          child: const Icon(
-                                            Icons.swap_vert_rounded,
-                                            color: Color(0xFF3815D8),
-                                            size: 24,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                // Shared From/To Route Selector (with Rapido Places Autocomplete & Swap)
+                                CarpoolFromToSelector(
+                                  from: s.from,
+                                  to: s.to,
+                                  onFromChanged: (v) =>
+                                      bloc.add(CarpoolOfferFromChanged(v)),
+                                  onToChanged: (v) =>
+                                      bloc.add(CarpoolOfferToChanged(v)),
+                                  onFromLocationChanged: (name, lat, lng) =>
+                                      bloc.add(CarpoolOfferFromChanged(
+                                        name,
+                                        lat: lat,
+                                        lng: lng,
+                                      )),
+                                  onToLocationChanged: (name, lat, lng) =>
+                                      bloc.add(CarpoolOfferToChanged(
+                                        name,
+                                        lat: lat,
+                                        lng: lng,
+                                      )),
+                                  onSwap: () =>
+                                      bloc.add(const CarpoolOfferSwapPressed()),
                                 ),
 
                                 const Divider(
@@ -938,11 +778,91 @@ class _OfferRideView extends StatelessWidget {
                                     );
                                     return;
                                   }
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => BlocProvider.value(
-                                        value: bloc,
-                                        child: const CarpoolPublishRidePage(),
+
+                                  // 1. Calculate distance and price (₹10/km)
+                                  final dist =
+                                      CarpoolDistanceCalculator.calculateDistanceKm(
+                                        s.from,
+                                        s.to,
+                                      );
+                                  final totalFare = dist * 10;
+                                  final pricePerSeat =
+                                      (totalFare / (s.seats > 0 ? s.seats : 1))
+                                          .round();
+
+                                  // 2. Temporarily save ride and popular route in memory datasource
+                                  final mockDs = CarpoolMockDataSource();
+                                  mockDs.addPopularRoute(
+                                    s.from,
+                                    s.to,
+                                    pricePerSeat,
+                                    fromLat: s.fromLat,
+                                    fromLng: s.fromLng,
+                                    toLat: s.toLat,
+                                    toLng: s.toLng,
+                                  );
+                                  mockDs.publishRide(
+                                    CarpoolPublishRideParams(
+                                      from: s.from,
+                                      to: s.to,
+                                      departure: s.departure,
+                                      seats: s.seats,
+                                      //    pricePerSeat: pricePerSeat,
+                                      rideType: s.rideType,
+                                    ),
+                                  );
+
+                                  // 3. Immediately update CarpoolHomeBloc so Popular Routes on Home page updates
+                                  try {
+                                    context.read<CarpoolHomeBloc>().add(
+                                      CarpoolHomeRouteAdded(
+                                        from: s.from,
+                                        to: s.to,
+                                        price: pricePerSeat,
+                                        fromLat: s.fromLat,
+                                        fromLng: s.fromLng,
+                                        toLat: s.toLat,
+                                        toLng: s.toLng,
+                                      ),
+                                    );
+                                  } catch (_) {}
+
+                                  // 4. Switch to Home tab (index 0)
+                                  try {
+                                    context.read<CarpoolNavCubit>().select(0);
+                                  } catch (_) {}
+
+                                  // 5. Close current page and return to Home page
+                                  if (Navigator.of(context).canPop()) {
+                                    Navigator.of(context).pop();
+                                  }
+
+                                  // 6. Show confirmation message
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      backgroundColor: const Color(0xFF140D43),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      content: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.check_circle_rounded,
+                                            color: Color(0xFF00E676),
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              'Ride posted: ${s.from} → ${s.to} (₹$pricePerSeat). Added to Popular Routes!',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   );

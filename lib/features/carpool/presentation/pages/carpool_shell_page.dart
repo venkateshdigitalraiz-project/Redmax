@@ -106,11 +106,21 @@ class _CarpoolShellView extends StatelessWidget {
                   currentIndex: index,
                   unreadMessages: messages.unreadCount,
                   onTap: context.read<CarpoolNavCubit>().select,
-                  onCenterTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const CarpoolOfferRidePage(),
-                    ),
-                  ),
+                  onCenterTap: () {
+                    final homeBloc = context.read<CarpoolHomeBloc>();
+                    final navCubit = context.read<CarpoolNavCubit>();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => MultiBlocProvider(
+                          providers: [
+                            BlocProvider.value(value: homeBloc),
+                            BlocProvider.value(value: navCubit),
+                          ],
+                          child: const CarpoolOfferRidePage(),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
         );

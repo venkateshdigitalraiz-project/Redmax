@@ -45,7 +45,10 @@ class CarpoolProfilePage extends StatelessWidget {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text(
               'Stay',
-              style: TextStyle(color: Color(0xFF6B658C), fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Color(0xFF6B658C),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           ElevatedButton(
@@ -58,7 +61,10 @@ class CarpoolProfilePage extends StatelessWidget {
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text(
               'Log out',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -94,9 +100,9 @@ class CarpoolProfilePage extends StatelessWidget {
       _ProfileMenuItem(
         icon: Icons.account_balance_wallet_rounded,
         label: 'Wallet & Payments',
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const CarpoolWalletPage()),
-        ),
+        onTap: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const CarpoolWalletPage())),
       ),
       _ProfileMenuItem(
         icon: Icons.support_agent_rounded,
@@ -122,11 +128,7 @@ class CarpoolProfilePage extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFEDE8FF),
-              Color(0xFFF7F5FE),
-              Colors.white,
-            ],
+            colors: [Color(0xFFEDE8FF), Color(0xFFF7F5FE), Colors.white],
             stops: [0.0, 0.40, 1.0],
           ),
         ),
@@ -222,15 +224,16 @@ class CarpoolProfilePage extends StatelessWidget {
                         child: Image.network(
                           'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?fit=crop&w=300&h=300',
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: const Color(0xFFEBE6FC),
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.person_rounded,
-                              size: 54,
-                              color: Color(0xFF3815D8),
-                            ),
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                color: const Color(0xFFEBE6FC),
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.person_rounded,
+                                  size: 54,
+                                  color: Color(0xFF3815D8),
+                                ),
+                              ),
                         ),
                       ),
                     ),
@@ -293,10 +296,7 @@ class CarpoolProfilePage extends StatelessWidget {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              '👑',
-                              style: TextStyle(fontSize: 14),
-                            ),
+                            Text('👑', style: TextStyle(fontSize: 14)),
                             SizedBox(width: 5),
                             Text(
                               'Premium Member',
@@ -351,8 +351,8 @@ class CarpoolProfilePage extends StatelessWidget {
                                       // Blue/purple icon
                                       Icon(
                                         items[i].icon,
-                                        color: const Color(0xFF3815D8),
-                                        size: 22,
+                                        color: const Color(0xFF240DA2),
+                                        size: 25,
                                       ),
                                       const SizedBox(width: 14),
                                       // Title text

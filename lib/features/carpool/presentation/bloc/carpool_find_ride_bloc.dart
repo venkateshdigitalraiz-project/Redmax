@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pathway/core/utils/carpool_distance_calculator.dart';
 import 'package:pathway/core/utils/carpool_status.dart';
 
 import '../../domain/entities/carpool_entities.dart';
@@ -12,11 +13,24 @@ abstract class CarpoolFindRideEvent extends Equatable {
 }
 
 class CarpoolFindRideRouteSelected extends CarpoolFindRideEvent {
-  const CarpoolFindRideRouteSelected(this.from, this.to);
+  const CarpoolFindRideRouteSelected(
+    this.from,
+    this.to, {
+    this.fromLat,
+    this.fromLng,
+    this.toLat,
+    this.toLng,
+  });
+
   final String from;
   final String to;
+  final double? fromLat;
+  final double? fromLng;
+  final double? toLat;
+  final double? toLng;
+
   @override
-  List<Object?> get props => [from, to];
+  List<Object?> get props => [from, to, fromLat, fromLng, toLat, toLng];
 }
 
 class CarpoolFindRideFilterChanged extends CarpoolFindRideEvent {
@@ -44,7 +58,11 @@ class CarpoolFindRideState extends Equatable {
   const CarpoolFindRideState({
     this.status = CarpoolStatus.initial,
     this.from = 'Hyderabad',
+    this.fromLat = 17.3850,
+    this.fromLng = 78.4867,
     this.to = 'Vijayawada',
+    this.toLat = 16.5062,
+    this.toLng = 80.6480,
     this.filter = CarpoolDayFilter.today,
     this.rides = const [],
     this.favorites = const {},
@@ -54,19 +72,29 @@ class CarpoolFindRideState extends Equatable {
 
   final CarpoolStatus status;
   final String from;
+  final double fromLat;
+  final double fromLng;
   final String to;
+  final double toLat;
+  final double toLng;
   final CarpoolDayFilter filter;
   final List<CarpoolRideEntity> rides;
   final Set<String> favorites;
   final String? bookingId;
   final String? message;
 
-  int get distanceKm => rides.isEmpty ? 275 : rides.first.distanceKm;
+  int get distanceKm => rides.isNotEmpty
+      ? rides.first.distanceKm
+      : CarpoolDistanceCalculator.calculateDistanceKm(from, to);
 
   CarpoolFindRideState copyWith({
     CarpoolStatus? status,
     String? from,
+    double? fromLat,
+    double? fromLng,
     String? to,
+    double? toLat,
+    double? toLng,
     CarpoolDayFilter? filter,
     List<CarpoolRideEntity>? rides,
     Set<String>? favorites,
@@ -76,7 +104,11 @@ class CarpoolFindRideState extends Equatable {
   }) => CarpoolFindRideState(
     status: status ?? this.status,
     from: from ?? this.from,
+    fromLat: fromLat ?? this.fromLat,
+    fromLng: fromLng ?? this.fromLng,
     to: to ?? this.to,
+    toLat: toLat ?? this.toLat,
+    toLng: toLng ?? this.toLng,
     filter: filter ?? this.filter,
     rides: rides ?? this.rides,
     favorites: favorites ?? this.favorites,
@@ -88,7 +120,11 @@ class CarpoolFindRideState extends Equatable {
   List<Object?> get props => [
     status,
     from,
+    fromLat,
+    fromLng,
     to,
+    toLat,
+    toLng,
     filter,
     rides,
     favorites,
@@ -106,7 +142,26 @@ class CarpoolFindRideBloc
        _bookRide = bookRide,
        super(const CarpoolFindRideState()) {
     on<CarpoolFindRideRouteSelected>((e, emit) async {
-      emit(state.copyWith(from: e.from, to: e.to));
+      final geoFrom = (e.fromLat != null && e.fromLng != null)
+          ? null
+          : CarpoolDistanceCalculator.findGeo(e.from);
+      final geoTo = (e.toLat != null && e.toLng != null)
+          ? null
+          : CarpoolDistanceCalculator.findGeo(e.to);
+
+      final fLat = e.fromLat ?? geoFrom?.lat ?? state.fromLat;
+      final fLng = e.fromLng ?? geoFrom?.lng ?? state.fromLng;
+      final tLat = e.toLat ?? geoTo?.lat ?? state.toLat;
+      final tLng = e.toLng ?? geoTo?.lng ?? state.toLng;
+
+      emit(state.copyWith(
+        from: e.from,
+        fromLat: fLat,
+        fromLng: fLng,
+        to: e.to,
+        toLat: tLat,
+        toLng: tLng,
+      ));
       await _search(emit);
     });
     on<CarpoolFindRideFilterChanged>((e, emit) async {

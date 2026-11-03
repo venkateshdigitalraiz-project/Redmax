@@ -34,14 +34,22 @@ class CarpoolPopularRouteEntity extends Equatable {
     required this.from,
     required this.to,
     required this.price,
+    this.fromLat,
+    this.fromLng,
+    this.toLat,
+    this.toLng,
   });
 
   final String from;
   final String to;
   final int price;
+  final double? fromLat;
+  final double? fromLng;
+  final double? toLat;
+  final double? toLng;
 
   @override
-  List<Object?> get props => [from, to, price];
+  List<Object?> get props => [from, to, price, fromLat, fromLng, toLat, toLng];
 }
 
 class CarpoolRideEntity extends Equatable {

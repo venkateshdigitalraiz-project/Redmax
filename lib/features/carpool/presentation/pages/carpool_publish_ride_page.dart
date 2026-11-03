@@ -8,7 +8,8 @@ import '../../data/datasources/carpool_mock_data_source.dart';
 import '../../data/repositories/carpool_repository_impl.dart';
 import '../../domain/usecases/carpool_usecases.dart';
 import '../bloc/carpool_offer_ride_bloc.dart';
-import 'carpool_ride_published_page.dart';
+import 'carpool_ride_summary_page.dart';
+import 'carpool_select_route_page.dart';
 
 /// Screen "Publish a Ride" – matches the exact design screenshot:
 /// 1. Top bar with clean back button, "Publish a Ride" title, and tune icon.
@@ -20,6 +21,29 @@ class CarpoolPublishRidePage extends StatelessWidget {
   final CarpoolOfferRideBloc? bloc;
 
   const CarpoolPublishRidePage({super.key, this.bloc});
+
+  /// Navigates to [CarpoolPublishRidePage] safely on the root navigator.
+  static Future<void> show(BuildContext context, [CarpoolOfferRideBloc? bloc]) {
+    final b = bloc ??
+        () {
+          try {
+            return context.read<CarpoolOfferRideBloc>();
+          } catch (_) {
+            return null;
+          }
+        }();
+
+    return Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        builder: (_) => b != null
+            ? BlocProvider.value(
+                value: b,
+                child: CarpoolPublishRidePage(bloc: b),
+              )
+            : const CarpoolPublishRidePage(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,26 +67,136 @@ class CarpoolPublishRidePage extends StatelessWidget {
   }
 }
 
-class _PublishRideView extends StatelessWidget {
+class _PublishRideView extends StatefulWidget {
   const _PublishRideView();
 
   @override
-  Widget build(BuildContext context) {
-    return BlocConsumer<CarpoolOfferRideBloc, CarpoolOfferRideState>(
-      listenWhen: (p, c) => p.status != c.status,
-      listener: (context, s) {
-        if (s.status == CarpoolStatus.success && s.publishedRide != null) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => CarpoolRidePublishedPage(ride: s.publishedRide!),
+  State<_PublishRideView> createState() => _PublishRideViewState();
+}
+
+class _PublishRideViewState extends State<_PublishRideView> {
+  bool _isNavigating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context
+            .read<CarpoolOfferRideBloc>()
+            .add(const CarpoolOfferResetStatus());
+      }
+    });
+  }
+
+  void _onPublishPressed(
+    BuildContext context,
+    CarpoolOfferRideBloc bloc,
+    CarpoolOfferRideState s,
+  ) {
+    if (_isNavigating) return;
+
+    final from = s.from.trim();
+    final to = s.to.trim();
+
+    if (from.isEmpty || to.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select both pick-up and drop-off locations'),
+          backgroundColor: Color(0xFF3815D8),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      CarpoolSelectRoutePage.show(context, bloc);
+      return;
+    }
+
+    if (from.toLowerCase() == to.toLowerCase()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pick-up and drop-off locations cannot be the same'),
+          backgroundColor: Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      CarpoolSelectRoutePage.show(context, bloc);
+      return;
+    }
+
+    setState(() => _isNavigating = true);
+
+    Navigator.of(context, rootNavigator: true)
+        .push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: bloc,
+          child: CarpoolRideSummaryPage(bloc: bloc),
+        ),
+      ),
+    )
+        .then((_) {
+      if (mounted) {
+        setState(() => _isNavigating = false);
+        bloc.add(const CarpoolOfferResetStatus());
+      }
+    });
+  }
+
+  Future<void> _pickDate(BuildContext context, CarpoolOfferRideState s) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: s.departure.isBefore(now) ? now : s.departure,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: 180)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF3815D8),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF140D43),
             ),
-          );
-        } else if (s.status == CarpoolStatus.failure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(s.error ?? 'Could not publish ride')),
-          );
-        }
+          ),
+          child: child!,
+        );
       },
+    );
+    if (picked != null && context.mounted) {
+      context.read<CarpoolOfferRideBloc>().add(CarpoolOfferDateChanged(picked));
+    }
+  }
+
+  Future<void> _pickTime(BuildContext context, CarpoolOfferRideState s) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: s.departure.hour,
+        minute: s.departure.minute,
+      ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF3815D8),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF140D43),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && context.mounted) {
+      context.read<CarpoolOfferRideBloc>().add(
+            CarpoolOfferTimeChanged(picked.hour, picked.minute),
+          );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<CarpoolOfferRideBloc, CarpoolOfferRideState>(
       builder: (context, s) {
         final bloc = context.read<CarpoolOfferRideBloc>();
         final isToday = CarpoolFormatters.isSameDay(
@@ -210,6 +344,7 @@ class _PublishRideView extends StatelessWidget {
                                   icon: Icons.calendar_month_rounded,
                                   title: isToday ? 'Today' : 'Date',
                                   subtitle: CarpoolFormatters.date(s.departure),
+                                  onTap: () => _pickDate(context, s),
                                 ),
 
                                 const _CardDivider(),
@@ -219,6 +354,7 @@ class _PublishRideView extends StatelessWidget {
                                   icon: Icons.access_time_rounded,
                                   title: 'Time',
                                   subtitle: CarpoolFormatters.time(s.departure),
+                                  onTap: () => _pickTime(context, s),
                                 ),
 
                                 const _CardDivider(),
@@ -229,6 +365,10 @@ class _PublishRideView extends StatelessWidget {
                                   title: 'Route',
                                   subtitle: '${s.from} → ${s.to}',
                                   isRouteBold: true,
+                                  onTap: () => CarpoolSelectRoutePage.show(
+                                    context,
+                                    bloc,
+                                  ),
                                 ),
 
                                 const _CardDivider(),
@@ -279,9 +419,8 @@ class _PublishRideView extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: _PublishButton(
-                            isLoading: s.status == CarpoolStatus.loading,
-                            onPressed: () =>
-                                bloc.add(const CarpoolOfferPublishPressed()),
+                            isLoading: _isNavigating,
+                            onPressed: () => _onPublishPressed(context, bloc, s),
                           ),
                         ),
                       ],
@@ -506,21 +645,23 @@ class _CardInfoRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool isRouteBold;
+  final VoidCallback? onTap;
 
   const _CardInfoRow({
     required this.icon,
     required this.title,
     required this.subtitle,
     this.isRouteBold = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final rowContent = Padding(
       padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.primaryDark, size: 26),
+          Icon(icon, color: const Color(0xFF1D1464), size: 26),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -529,20 +670,18 @@ class _CardInfoRow extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    color: Color(0xFF140D43),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B658C),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    fontWeight: isRouteBold ? FontWeight.w700 : FontWeight.w500,
-                    fontSize: isRouteBold ? 14 : 13,
-                    color: isRouteBold
-                        ? const Color(0xFF140D43)
-                        : const Color(0xFF6B658C),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF140D43),
                   ),
                 ),
               ],
@@ -556,6 +695,19 @@ class _CardInfoRow extends StatelessWidget {
         ],
       ),
     );
+
+    if (onTap != null) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: rowContent,
+        ),
+      );
+    }
+
+    return rowContent;
   }
 }
 
@@ -647,59 +799,63 @@ class _PublishButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 54,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF5D24F7), Color(0xFF300AB3)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(27),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF4C1CDD).withOpacity(0.38),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: isLoading ? null : onPressed,
+      child: Container(
+        width: double.infinity,
+        height: 54,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF5D24F7), Color(0xFF300AB3)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
           borderRadius: BorderRadius.circular(27),
-          onTap: isLoading ? null : onPressed,
-          child: Center(
-            child: isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Publish Ride',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(
-                        Icons.arrow_forward_rounded,
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4C1CDD).withOpacity(0.38),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(27),
+            onTap: isLoading ? null : onPressed,
+            child: Center(
+              child: isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
                         color: Colors.white,
-                        size: 20,
                       ),
-                    ],
-                  ),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Publish Ride',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),

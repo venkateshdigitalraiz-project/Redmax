@@ -224,59 +224,64 @@ class _DashboardShellPageState extends State<DashboardShellPage>
         builder: (context, state) {
           final services = state.data?.services ?? [];
           if (services.isEmpty && state.status == DashboardStatus.loading) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF0077F6),
-                strokeWidth: 2.5,
+            return const SafeArea(
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF0077F6),
+                  strokeWidth: 2.5,
+                ),
               ),
             );
           }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Explore available services & mobility options',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w500,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : const Color(0xFF64748B),
+          return SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Explore available services & mobility options',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : const Color(0xFF64748B),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.zero,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.75,
+                  const SizedBox(height: 18),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.75,
+                    ),
+                    itemCount: services.length,
+                    itemBuilder: (context, index) {
+                      final service = services[index];
+                      return ServiceGridCard(
+                        service: service,
+                        onTap: () {
+                          if (service.type == DashboardServiceType.carpool) {
+                            _onOpenCarpool();
+                          } else if (service.type ==
+                              DashboardServiceType.partyBooking) {
+                            _onOpenPartyBooking();
+                          } else {
+                            _showComingSoonDialog(context, service.title, isDark);
+                          }
+                        },
+                      );
+                    },
                   ),
-                  itemCount: services.length,
-                  itemBuilder: (context, index) {
-                    final service = services[index];
-                    return ServiceGridCard(
-                      service: service,
-                      onTap: () {
-                        if (service.type == DashboardServiceType.carpool) {
-                          _onOpenCarpool();
-                        } else if (service.type ==
-                            DashboardServiceType.partyBooking) {
-                          _onOpenPartyBooking();
-                        } else {
-                          _showComingSoonDialog(context, service.title, isDark);
-                        }
-                      },
-                    );
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -295,31 +300,34 @@ class _DashboardShellPageState extends State<DashboardShellPage>
         backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
         automaticallyImplyLeading: false,
       ),
-      body: BlocBuilder<DashboardBloc, DashboardState>(
-        builder: (context, state) {
-          final activities = state.data?.recentActivities ?? [];
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: RecentActivitySection(
-              activities: activities,
-              onSeeAll: () {},
-              onActivityTap: (activity) {
-                if (activity.type == ActivityType.carpool) {
-                  _onOpenCarpool();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '${activity.title} (${activity.subtitle}) details',
+      body: SafeArea(
+        top: false,
+        child: BlocBuilder<DashboardBloc, DashboardState>(
+          builder: (context, state) {
+            final activities = state.data?.recentActivities ?? [];
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: RecentActivitySection(
+                activities: activities,
+                onSeeAll: () {},
+                onActivityTap: (activity) {
+                  if (activity.type == ActivityType.carpool) {
+                    _onOpenCarpool();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '${activity.title} (${activity.subtitle}) details',
+                        ),
+                        duration: const Duration(seconds: 1),
                       ),
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
-                }
-              },
-            ),
-          );
-        },
+                    );
+                  }
+                },
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -347,9 +355,11 @@ class _DashboardShellPageState extends State<DashboardShellPage>
             backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
             automaticallyImplyLeading: false,
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Column(
+          body: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Column(
               children: [
                 // Profile header card
                 Container(
@@ -520,8 +530,9 @@ class _DashboardShellPageState extends State<DashboardShellPage>
               ],
             ),
           ),
-        );
-      },
+        ),
+      );
+    },
     );
   }
 

@@ -1,3 +1,9 @@
 export 'utils/carpool_status.dart';
+export 'utils/carpool_distance_calculator.dart';
 export 'widgets/carpool_painters.dart';
 export 'widgets/carpool_widgets.dart';
+export '../features/carpool/presentation/pages/rapido_place_search_page.dart';
+export '../features/carpool/presentation/pages/carpool_select_route_page.dart';
+export '../features/carpool/presentation/pages/carpool_ride_summary_page.dart';
+export '../features/carpool/presentation/widgets/carpool_route_selector_card.dart';
+export '../features/carpool/presentation/widgets/real_google_map_preview.dart';

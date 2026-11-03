@@ -45,91 +45,107 @@ class DashboardHomePage extends StatelessWidget {
 
           // Full-screen loading
           if (data == null && state.status == DashboardStatus.loading) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF0077F6),
-                strokeWidth: 2.5,
+            return const SafeArea(
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF0077F6),
+                  strokeWidth: 2.5,
+                ),
               ),
             );
           }
 
           // Error / empty state
           if (data == null) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.cloud_off_rounded,
-                    size: 56,
-                    color: Color(0xFF64748B),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Failed to load dashboard',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : const Color(0xFF0F172A),
+            return SafeArea(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_rounded,
+                      size: 56,
+                      color: Color(0xFF64748B),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Check your connection and try again.',
-                    style: TextStyle(fontSize: 13.5, color: Color(0xFF64748B)),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => context.read<DashboardBloc>().add(
-                      const LoadDashboardDataEvent(),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Failed to load dashboard',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : const Color(0xFF0F172A),
+                      ),
                     ),
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: const Text('Retry'),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Check your connection and try again.',
+                      style: TextStyle(fontSize: 13.5, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () => context.read<DashboardBloc>().add(
+                        const LoadDashboardDataEvent(),
+                      ),
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
               ),
             );
           }
 
-          return RefreshIndicator(
-            color: const Color(0xFF0077F6),
-            backgroundColor: isDark ? AppColors.darkCard : Colors.white,
-            onRefresh: () async {
-              context.read<DashboardBloc>().add(
-                const RefreshDashboardDataEvent(),
-              );
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Organic Wave Blue Header with Charminar
-                  DashboardHeader(
-                    userName: data.userName,
-                    locationCity: data.locationCity,
-                    unreadNotifications: data.unreadNotificationsCount,
-                    onLocationTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Selected City: ${data.locationCity}'),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                    onNotificationTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'You have ${data.unreadNotificationsCount} unread notifications',
+          final viewPadding = MediaQuery.viewPaddingOf(context).top;
+          final padding = MediaQuery.paddingOf(context).top;
+          final windowPadding =
+              View.of(context).padding.top / View.of(context).devicePixelRatio;
+          final topPadding = viewPadding > 0
+              ? viewPadding
+              : (padding > 0 ? padding : (windowPadding > 0 ? windowPadding : 36.0));
+
+          return SafeArea(
+            top: false,
+            child: RefreshIndicator(
+              color: const Color(0xFF0077F6),
+              backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+              edgeOffset: topPadding,
+              onRefresh: () async {
+                context.read<DashboardBloc>().add(
+                  const RefreshDashboardDataEvent(),
+                );
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. Organic Wave Blue Header with Charminar
+                    DashboardHeader(
+                      topPadding: topPadding,
+                      userName: data.userName,
+                      locationCity: data.locationCity,
+                      unreadNotifications: data.unreadNotificationsCount,
+                      onLocationTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Selected City: ${data.locationCity}'),
+                            duration: const Duration(seconds: 1),
                           ),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                      onNotificationTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'You have ${data.unreadNotificationsCount} unread notifications',
+                            ),
+                            duration: const Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                    ),
 
                   // 2. Services Grid (2 Columns x 3 Rows = 6 items matching screenshot)
                   Padding(
@@ -264,8 +280,9 @@ class DashboardHomePage extends StatelessWidget {
                 ],
               ),
             ),
-          );
-        },
+          ),
+        );
+      },
       ),
     );
   }

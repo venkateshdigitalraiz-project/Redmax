@@ -250,8 +250,8 @@ class CarpoolMyRidesPage extends StatelessWidget {
                                   gradient: s.tabIndex == 0
                                       ? const LinearGradient(
                                           colors: [
-                                            Color(0xFF6F35FF),
-                                            Color(0xFF3309B8),
+                                            Color(0xFF5428E8),
+                                            Color(0xFF240DA2),
                                           ],
                                           begin: Alignment.topLeft,
                                           end: Alignment.bottomRight,
@@ -427,7 +427,7 @@ class _MyRideCard extends StatelessWidget {
   Color get _statusColor {
     switch (ride.status) {
       case CarpoolRideStatus.upcoming:
-        return const Color(0xFF5B3BF5);
+        return const Color(0xFFFFFFFF);
       case CarpoolRideStatus.completed:
         return const Color(0xFF16A34A);
       case CarpoolRideStatus.cancelled:
@@ -438,11 +438,11 @@ class _MyRideCard extends StatelessWidget {
   Color get _statusBg {
     switch (ride.status) {
       case CarpoolRideStatus.upcoming:
-        return const Color(0xFF6F35FF).withOpacity(0.12);
+        return const Color(0xFF6F35FF).withOpacity(0.6);
       case CarpoolRideStatus.completed:
-        return const Color(0xFF16A34A).withOpacity(0.12);
+        return const Color(0xFF16A34A).withOpacity(0.6);
       case CarpoolRideStatus.cancelled:
-        return const Color(0xFFDC2626).withOpacity(0.12);
+        return const Color(0xFFDC2626).withOpacity(0.6);
     }
   }
 
@@ -668,7 +668,7 @@ class _MyRideCard extends StatelessWidget {
                     height: 44,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEFEBFD),
+                      color: const Color(0xFFEFE1FD),
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: const Color(0xFFE0D8FD),

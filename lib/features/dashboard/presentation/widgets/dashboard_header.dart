@@ -7,6 +7,7 @@ class DashboardHeader extends StatelessWidget {
   final int unreadNotifications;
   final VoidCallback? onNotificationTap;
   final VoidCallback? onLocationTap;
+  final double? topPadding;
 
   const DashboardHeader({
     super.key,
@@ -15,18 +16,25 @@ class DashboardHeader extends StatelessWidget {
     required this.unreadNotifications,
     this.onNotificationTap,
     this.onLocationTap,
+    this.topPadding,
   });
 
   @override
   Widget build(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
+    final effectiveTopPadding = (topPadding != null && topPadding! > 0)
+        ? topPadding!
+        : (MediaQuery.viewPaddingOf(context).top > 0
+            ? MediaQuery.viewPaddingOf(context).top
+            : (View.of(context).padding.top / View.of(context).devicePixelRatio > 0
+                ? View.of(context).padding.top / View.of(context).devicePixelRatio
+                : 36.0));
 
     return Stack(
       children: [
         // Royal Purple Gradient Container with Charminar blend
         Container(
           width: double.infinity,
-          height: topPadding + 195,
+          height: effectiveTopPadding + 195,
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -112,13 +120,16 @@ class DashboardHeader extends StatelessWidget {
         ),
 
         // Foreground content (Location, Notification, Greeting)
-        SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        Padding(
+          padding: EdgeInsets.only(
+            top: effectiveTopPadding + 14,
+            left: 18,
+            right: 18,
+            bottom: 8,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
                 // Top Bar Row: Location Pill + Notification Button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -252,7 +263,6 @@ class DashboardHeader extends StatelessWidget {
               ],
             ),
           ),
-        ),
       ],
     );
   }
