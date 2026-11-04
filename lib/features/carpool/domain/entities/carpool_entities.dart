@@ -115,6 +115,7 @@ class CarpoolPublishRideParams extends Equatable {
     required this.departure,
     required this.seats,
     required this.rideType,
+    this.pricePerSeat,
   });
 
   final String from;
@@ -122,9 +123,10 @@ class CarpoolPublishRideParams extends Equatable {
   final DateTime departure;
   final int seats;
   final CarpoolRideType rideType;
+  final int? pricePerSeat;
 
   @override
-  List<Object?> get props => [from, to, departure, seats, rideType];
+  List<Object?> get props => [from, to, departure, seats, rideType, pricePerSeat];
 }
 
 class CarpoolSearchRidesParams extends Equatable {

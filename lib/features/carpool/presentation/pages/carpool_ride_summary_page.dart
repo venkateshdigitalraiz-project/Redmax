@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pathway/core/utils/carpool_distance_calculator.dart';
 import 'package:pathway/core/utils/carpool_formatters.dart';
@@ -103,17 +103,40 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
 
         final bloc = context.read<CarpoolOfferRideBloc>();
         final screenHeight = MediaQuery.of(context).size.height;
-        final mapHeight =
-            _isMapFullscreen ? screenHeight * 0.78 : screenHeight * 0.44;
+        final mapHeight = _isMapFullscreen
+            ? screenHeight * 0.78
+            : screenHeight * 0.44;
 
         // Pricing logic: ₹10 per km as requested
         const int ratePerKm = 10;
-        final int distanceKm =
-            _liveDistanceResult?.distanceKm ??
-            CarpoolDistanceCalculator.calculateDistanceKm(s.from, s.to);
-        final int totalPrice = distanceKm * ratePerKm;
-        final int pricePerSeat = (totalPrice / (s.seats > 0 ? s.seats : 1))
-            .round();
+        final int activeDistanceKm = s.selectedStopovers.isNotEmpty
+            ? CarpoolDistanceCalculator.calculateMultiStopDistance(
+                s.from,
+                s.to,
+                s.selectedStopovers.toList(),
+                startLat: s.fromLat,
+                startLng: s.fromLng,
+                destLat: s.toLat,
+                destLng: s.toLng,
+              )
+            : (_liveDistanceResult?.distanceKm ??
+                  CarpoolDistanceCalculator.calculateDistanceKm(
+                    s.from,
+                    s.to,
+                    fromLat: s.fromLat,
+                    fromLng: s.fromLng,
+                    toLat: s.toLat,
+                    toLng: s.toLng,
+                  ));
+        final int distanceKm = activeDistanceKm;
+        final int calculatedTotalPrice = distanceKm * ratePerKm;
+        final int calculatedPricePerSeat =
+            (calculatedTotalPrice / (s.seats > 0 ? s.seats : 1)).round();
+        final int effectivePricePerSeat =
+            s.pricePerSeat ?? calculatedPricePerSeat;
+        final int effectiveTotalPrice = effectivePricePerSeat * s.seats;
+        final int totalPrice = effectiveTotalPrice;
+        final int pricePerSeat = effectivePricePerSeat;
         final String durationText =
             _liveDistanceResult?.durationText ??
             CarpoolDistanceCalculator.estimateDuration(distanceKm);
@@ -192,31 +215,32 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
                           ),
                         ),
                         const SizedBox(width: 14),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.92),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Text(
-                            'Route & Ride Summary',
-                            style: TextStyle(
-                              fontSize: 15.5,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF140D43),
-                            ),
-                          ),
-                        ),
+
+                        // Container(
+                        //   padding: const EdgeInsets.symmetric(
+                        //     horizontal: 14,
+                        //     vertical: 8,
+                        //   ),
+                        //   decoration: BoxDecoration(
+                        //     color: Colors.white.withOpacity(0.92),
+                        //     borderRadius: BorderRadius.circular(20),
+                        //     boxShadow: [
+                        //       BoxShadow(
+                        //         color: Colors.black.withOpacity(0.08),
+                        //         blurRadius: 8,
+                        //         offset: const Offset(0, 2),
+                        //       ),
+                        //     ],
+                        //   ),
+                        //   child: const Text(
+                        //     'Route & Ride Summary',
+                        //     style: TextStyle(
+                        //       fontSize: 15.5,
+                        //       fontWeight: FontWeight.w800,
+                        //       color: Color(0xFF140D43),
+                        //     ),
+                        //   ),
+                        // ),
                       ],
                     ),
                   ),
@@ -272,7 +296,10 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
                               child: Container(
                                 width: 44,
                                 height: 4.5,
-                                margin: const EdgeInsets.only(top: 10, bottom: 4),
+                                margin: const EdgeInsets.only(
+                                  top: 10,
+                                  bottom: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFD6CEF8),
                                   borderRadius: BorderRadius.circular(10),
@@ -320,6 +347,7 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
                               s.to,
                               distanceKm,
                               durationText,
+                              stopovers: s.selectedStopovers.toList(),
                             ),
 
                             const SizedBox(height: 14),
@@ -335,14 +363,20 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
                             const SizedBox(height: 16),
 
                             // ── 4. Distance & Price Calculation (₹10/km) ────
-                            _buildPriceCalculationCard(
+                            // _buildPriceCalculationCard(
+                            //   distanceKm: distanceKm,
+                            //   ratePerKm: ratePerKm,
+                            //   totalPrice: totalPrice,
+                            //   pricePerSeat: pricePerSeat,
+                            //   seats: s.seats,
+                            // ),
+                            _buildPriceMarginRow(
+                              pricePerSeat: effectivePricePerSeat,
+                              totalPrice: effectiveTotalPrice,
                               distanceKm: distanceKm,
                               ratePerKm: ratePerKm,
-                              totalPrice: totalPrice,
-                              pricePerSeat: pricePerSeat,
-                              seats: s.seats,
+                              bloc: bloc,
                             ),
-
                             const SizedBox(height: 18),
 
                             // ── 5. Confirm Booking Button ───────────────────
@@ -366,23 +400,24 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
   }
 
   /// Estimates travel duration based on distance
-  String _estimateDuration(int distanceKm) {
-    final totalMinutes = (distanceKm / 65 * 60).round();
-    final hours = totalMinutes ~/ 60;
-    final mins = totalMinutes % 60;
-    if (hours > 0) {
-      return '$hours hr ${mins > 0 ? '$mins min' : ''}';
-    }
-    return '$mins min';
-  }
+  // String _estimateDuration(int distanceKm) {
+  //   final totalMinutes = (distanceKm / 65 * 60).round();
+  //   final hours = totalMinutes ~/ 60;
+  //   final mins = totalMinutes % 60;
+  //   if (hours > 0) {
+  //     return '$hours hr ${mins > 0 ? '$mins min' : ''}';
+  //   }
+  //   return '$mins min';
+  // }
 
   /// Builds the Route From & To display card with accurate Google Map styling
   Widget _buildRouteCard(
     String from,
     String to,
     int distanceKm,
-    String duration,
-  ) {
+    String duration, {
+    List<String> stopovers = const [],
+  }) {
     final fromGeo = CarpoolDistanceCalculator.findGeo(from);
     final toGeo = CarpoolDistanceCalculator.findGeo(to);
 
@@ -506,35 +541,116 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
             ],
           ),
 
-          // Connecting Highway Line with Route Tag
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              children: [
-                const SizedBox(width: 11),
-                Container(width: 2, height: 22, color: const Color(0xFF1A73E8)),
-                const SizedBox(width: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEDE8FF),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'Fastest Highway Route',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF3815D8),
+          if (stopovers.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 11),
+              child: Container(
+                width: 2,
+                height: 10,
+                color: const Color(0xFF1A73E8),
+              ),
+            ),
+            for (final stop in stopovers) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF5D24F7),
+                          width: 2.5,
+                        ),
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text(
+                          stop,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF140D43),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEDE8FF),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Stopover',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF4C2BF0),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 11),
+                child: Container(
+                  width: 2,
+                  height: 10,
+                  color: const Color(0xFF1A73E8),
                 ),
-              ],
+              ),
+            ],
+          ] else ...[
+            // Connecting Highway Line with Route Tag
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  const SizedBox(width: 11),
+                  Container(
+                    width: 2,
+                    height: 22,
+                    color: const Color(0xFF1A73E8),
+                  ),
+                  const SizedBox(width: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEDE8FF),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Fastest Highway Route',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF3815D8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
 
           // Drop-off (To) Row with Google Maps Red Pin
           Row(
@@ -770,85 +886,78 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
     );
   }
 
-  /// Builds the Price & Distance breakdown card at ₹10/km
-  Widget _buildPriceCalculationCard({
+  /// Builds the Price Margin Row matching the exact style of [_buildSeatsBookingRow]
+  Widget _buildPriceMarginRow({
+    required int pricePerSeat,
+    required int totalPrice,
     required int distanceKm,
     required int ratePerKm,
-    required int totalPrice,
-    required int pricePerSeat,
-    required int seats,
+    required CarpoolOfferRideBloc bloc,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F1FD),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2DCF9), width: 1.3),
+        color: const Color(0xFFF8F7FD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEDE8FF), width: 1.2),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.receipt_long_rounded,
-                color: Color(0xFF3815D8),
-                size: 20,
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Price & Fare Breakdown',
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF140D43),
+          const Icon(
+            Icons.currency_rupee_rounded,
+            color: Color(0xFF3815D8),
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Price per Seat / Margin',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF140D43),
+                  ),
                 ),
-              ),
-              Spacer(),
-              // Rate badge: 10 ₹/km
-              _RateBadge(rateText: '₹10 / km'),
-            ],
+                // Text(
+                //   '₹$ratePerKm/km ($distanceKm km) • Total: ₹$totalPrice',
+                //   maxLines: 1,
+                //   overflow: TextOverflow.ellipsis,
+                //   style: const TextStyle(
+                //     fontSize: 11.5,
+                //     fontWeight: FontWeight.w500,
+                //     color: Color(0xFF6B658C),
+                //   ),
+                // ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-
-          // Distance row
-          _buildFareRow('Estimated Distance', '$distanceKm km'),
-          const SizedBox(height: 6),
-
-          // Rate per km row
-          _buildFareRow('Rate per Kilometer', '₹$ratePerKm / km'),
-          const SizedBox(height: 6),
-
-          // Calculation row
-          _buildFareRow(
-            'Distance Fare ($distanceKm km × ₹$ratePerKm)',
-            '₹$totalPrice',
-          ),
-          const SizedBox(height: 6),
-
-          // Per seat estimate
-          // _buildFareRow('Price per Seat ($seats seats)', '₹$pricePerSeat / seat'),
-          const Divider(height: 16, thickness: 1, color: Color(0xFFE2DCF9)),
-
-          // Total Fare Highlight Row
+          // Price Stepper in the exact style of seats stepper
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Total Price',
-                style: TextStyle(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF140D43),
+              _StepperBtn(
+                icon: Icons.remove_rounded,
+                onTap: () => bloc.add(
+                  CarpoolOfferPriceChanged(-10, currentBasePrice: pricePerSeat),
                 ),
               ),
-              Text(
-                '₹$totalPrice',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF3815D8),
-                  letterSpacing: -0.5,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text(
+                  '₹$pricePerSeat',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF140D43),
+                  ),
+                ),
+              ),
+              _StepperBtn(
+                icon: Icons.add_rounded,
+                onTap: () => bloc.add(
+                  CarpoolOfferPriceChanged(10, currentBasePrice: pricePerSeat),
                 ),
               ),
             ],
@@ -858,29 +967,117 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
     );
   }
 
-  Widget _buildFareRow(String title, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF6B658C),
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF140D43),
-          ),
-        ),
-      ],
-    );
-  }
+  /// Builds the Price & Distance breakdown card at ₹10/km
+  // Widget _buildPriceCalculationCard({
+  //   required int distanceKm,
+  //   required int ratePerKm,
+  //   required int totalPrice,
+  //   required int pricePerSeat,
+  //   required int seats,
+  // }) {
+  //   return Container(
+  //     padding: const EdgeInsets.all(16),
+  //     decoration: BoxDecoration(
+  //       color: const Color(0xFFF4F1FD),
+  //       borderRadius: BorderRadius.circular(20),
+  //       border: Border.all(color: const Color(0xFFE2DCF9), width: 1.3),
+  //     ),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         const Row(
+  //           children: [
+  //             Icon(
+  //               Icons.receipt_long_rounded,
+  //               color: Color(0xFF3815D8),
+  //               size: 20,
+  //             ),
+  //             SizedBox(width: 8),
+  //             Text(
+  //               'Price & Fare Breakdown',
+  //               style: TextStyle(
+  //                 fontSize: 14.5,
+  //                 fontWeight: FontWeight.w800,
+  //                 color: Color(0xFF140D43),
+  //               ),
+  //             ),
+  //             Spacer(),
+  //             // Rate badge: 10 ₹/km
+  //             _RateBadge(rateText: '₹10 / km'),
+  //           ],
+  //         ),
+  //         const SizedBox(height: 12),
+
+  //         // Distance row
+  //         _buildFareRow('Estimated Distance', '$distanceKm km'),
+  //         const SizedBox(height: 6),
+
+  //         // Rate per km row
+  //         _buildFareRow('Rate per Kilometer', '₹$ratePerKm / km'),
+  //         const SizedBox(height: 6),
+
+  //         // Calculation row
+  //         _buildFareRow(
+  //           'Distance Fare ($distanceKm km × ₹$ratePerKm)',
+  //           '₹$totalPrice',
+  //         ),
+  //         const SizedBox(height: 6),
+
+  //         // Per seat estimate
+  //         // _buildFareRow('Price per Seat ($seats seats)', '₹$pricePerSeat / seat'),
+  //         const Divider(height: 16, thickness: 1, color: Color(0xFFE2DCF9)),
+
+  //         // Total Fare Highlight Row
+  //         Row(
+  //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //           children: [
+  //             const Text(
+  //               'Total Price',
+  //               style: TextStyle(
+  //                 fontSize: 15.5,
+  //                 fontWeight: FontWeight.w800,
+  //                 color: Color(0xFF140D43),
+  //               ),
+  //             ),
+  //             Text(
+  //               '₹$totalPrice',
+  //               style: const TextStyle(
+  //                 fontSize: 22,
+  //                 fontWeight: FontWeight.w900,
+  //                 color: Color(0xFF3815D8),
+  //                 letterSpacing: -0.5,
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  // Widget _buildFareRow(String title, String value) {
+  //   return Row(
+  //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //     children: [
+  //       Text(
+  //         title,
+  //         style: const TextStyle(
+  //           fontSize: 12.5,
+  //           fontWeight: FontWeight.w500,
+  //           color: Color(0xFF6B658C),
+  //         ),
+  //       ),
+  //       Text(
+  //         value,
+  //         style: const TextStyle(
+  //           fontSize: 13,
+  //           fontWeight: FontWeight.w700,
+  //           color: Color(0xFF140D43),
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   /// Builds the Confirm Booking Gradient Button
   Widget _buildConfirmBookingButton({
@@ -1006,5 +1203,3 @@ class _StepperBtn extends StatelessWidget {
     );
   }
 }
-
-

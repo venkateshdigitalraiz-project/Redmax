@@ -16,6 +16,10 @@ class CarpoolDistanceCalculator {
 
   static const String defaultApiKey = 'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU';
 
+  /// Configurable default route-deviation threshold in kilometers (default: 40.0 km).
+  /// Any stopover adding <= this distance is considered on the route or accessible detour.
+  static double defaultRouteDeviationThresholdKm = 40.0;
+
   // ══════════════════════════════════════════════════════════════════════════
   // 1. VERIFIED HIGHWAY DISTANCE LOOKUP (KM)
   // ══════════════════════════════════════════════════════════════════════════
@@ -54,6 +58,19 @@ class CarpoolDistanceCalculator {
     'hyderabad_nizamabad': 175,
     'hyderabad_nalgonda': 100,
     'hyderabad_suryapet': 135,
+    'hyderabad_lbnagar': 14,
+    'lbnagar_vijayawada': 261,
+    'lbnagar_suryapet': 122,
+    'suryapet_vijayawada': 140,
+    'suryapet_kodad': 45,
+    'kodad_vijayawada': 95,
+    'hyderabad_kodad': 180,
+    'lbnagar_kodad': 166,
+    'hyderabad_choutuppal': 50,
+    'choutuppal_vijayawada': 225,
+    'choutuppal_suryapet': 85,
+    'kodad_nandigama': 40,
+    'nandigama_vijayawada': 55,
     'hyderabad_mahabubnagar': 105,
     'hyderabad_siddipet': 105,
     'hyderabad_rajahmundry': 430,
@@ -100,6 +117,158 @@ class CarpoolDistanceCalculator {
       type: 'Town / Mandal',
       district: 'West Godavari',
       state: 'Andhra Pradesh',
+    ),
+    'kalidindi': const PlaceGeoInfo(
+      name: 'Kalidindi',
+      lat: 16.5167,
+      lng: 81.2833,
+      type: 'Town / Mandal',
+      district: 'Eluru',
+      state: 'Andhra Pradesh',
+    ),
+    'gannavaram': const PlaceGeoInfo(
+      name: 'Gannavaram',
+      lat: 16.5408,
+      lng: 80.8052,
+      type: 'Town / Mandal',
+      district: 'Krishna',
+      state: 'Andhra Pradesh',
+    ),
+    'mandavalli': const PlaceGeoInfo(
+      name: 'Mandavalli',
+      lat: 16.5833,
+      lng: 81.1667,
+      type: 'Town / Mandal',
+      district: 'Eluru',
+      state: 'Andhra Pradesh',
+    ),
+    'mudinepalli': const PlaceGeoInfo(
+      name: 'Mudinepalli',
+      lat: 16.4833,
+      lng: 81.1167,
+      type: 'Town / Mandal',
+      district: 'Krishna',
+      state: 'Andhra Pradesh',
+    ),
+    'hanuman_junction': const PlaceGeoInfo(
+      name: 'Hanuman Junction',
+      lat: 16.6320,
+      lng: 80.9520,
+      type: 'Town / Junction',
+      district: 'Krishna',
+      state: 'Andhra Pradesh',
+    ),
+    'choutuppal': const PlaceGeoInfo(
+      name: 'Choutuppal',
+      lat: 17.2520,
+      lng: 78.9020,
+      type: 'Town / Mandal',
+      district: 'Yadadri Bhuvanagiri',
+      state: 'Telangana',
+    ),
+    'nakrekal': const PlaceGeoInfo(
+      name: 'Nakrekal',
+      lat: 17.1850,
+      lng: 79.4200,
+      type: 'Town / Mandal',
+      district: 'Nalgonda',
+      state: 'Telangana',
+    ),
+    'kodad': const PlaceGeoInfo(
+      name: 'Kodad',
+      lat: 16.9967,
+      lng: 79.9678,
+      type: 'Town / Mandal',
+      district: 'Suryapet',
+      state: 'Telangana',
+    ),
+    'jaggaiahpet': const PlaceGeoInfo(
+      name: 'Jaggaiahpet',
+      lat: 16.8920,
+      lng: 80.1050,
+      type: 'Town / Mandal',
+      district: 'NTR',
+      state: 'Andhra Pradesh',
+    ),
+    'nandigama': const PlaceGeoInfo(
+      name: 'Nandigama',
+      lat: 16.7667,
+      lng: 80.2833,
+      type: 'Town / Mandal',
+      district: 'NTR',
+      state: 'Andhra Pradesh',
+    ),
+    'kanchikacherla': const PlaceGeoInfo(
+      name: 'Kanchikacherla',
+      lat: 16.6810,
+      lng: 80.4050,
+      type: 'Town / Mandal',
+      district: 'NTR',
+      state: 'Andhra Pradesh',
+    ),
+    'ibrahimpatnam': const PlaceGeoInfo(
+      name: 'Ibrahimpatnam',
+      lat: 16.5890,
+      lng: 80.5230,
+      type: 'Town / Mandal',
+      district: 'NTR',
+      state: 'Andhra Pradesh',
+    ),
+    'ravulapalem': const PlaceGeoInfo(
+      name: 'Ravulapalem',
+      lat: 16.7510,
+      lng: 81.8410,
+      type: 'Town / Mandal',
+      district: 'Dr. B.R. Ambedkar Konaseema',
+      state: 'Andhra Pradesh',
+    ),
+    'samalkot': const PlaceGeoInfo(
+      name: 'Samalkot',
+      lat: 17.0520,
+      lng: 82.1680,
+      type: 'Town / Mandal',
+      district: 'Kakinada',
+      state: 'Andhra Pradesh',
+    ),
+    'annavaram': const PlaceGeoInfo(
+      name: 'Annavaram',
+      lat: 17.2800,
+      lng: 82.4040,
+      type: 'Town / Mandal',
+      district: 'Kakinada',
+      state: 'Andhra Pradesh',
+    ),
+    'tuni': const PlaceGeoInfo(
+      name: 'Tuni',
+      lat: 17.3556,
+      lng: 82.5514,
+      type: 'Town / Mandal',
+      district: 'Kakinada',
+      state: 'Andhra Pradesh',
+    ),
+    'anakapalle': const PlaceGeoInfo(
+      name: 'Anakapalle',
+      lat: 17.6913,
+      lng: 83.0039,
+      type: 'City',
+      district: 'Anakapalli',
+      state: 'Andhra Pradesh',
+    ),
+    'lbnagar': const PlaceGeoInfo(
+      name: 'LB Nagar',
+      lat: 17.3501,
+      lng: 78.5511,
+      type: 'Highway Junction / Locality',
+      district: 'Rangareddy',
+      state: 'Telangana',
+    ),
+    'lb_nagar': const PlaceGeoInfo(
+      name: 'LB Nagar',
+      lat: 17.3501,
+      lng: 78.5511,
+      type: 'Highway Junction / Locality',
+      district: 'Rangareddy',
+      state: 'Telangana',
     ),
     'tanuku': const PlaceGeoInfo(
       name: 'Tanuku',
@@ -220,6 +389,22 @@ class CarpoolDistanceCalculator {
       type: 'City',
       district: 'Anakapalli',
       state: 'Andhra Pradesh',
+    ),
+    'lbnagar': const PlaceGeoInfo(
+      name: 'LB Nagar',
+      lat: 17.3501,
+      lng: 78.5511,
+      type: 'Highway Junction / Locality',
+      district: 'Rangareddy',
+      state: 'Telangana',
+    ),
+    'lb_nagar': const PlaceGeoInfo(
+      name: 'LB Nagar',
+      lat: 17.3501,
+      lng: 78.5511,
+      type: 'Highway Junction / Locality',
+      district: 'Rangareddy',
+      state: 'Telangana',
     ),
     'ongole': const PlaceGeoInfo(
       name: 'Ongole',
@@ -1182,7 +1367,14 @@ class CarpoolDistanceCalculator {
   // ══════════════════════════════════════════════════════════════════════════
   // 3. SYNCHRONOUS ACCURATE DISTANCE CALCULATION (KM)
   // ══════════════════════════════════════════════════════════════════════════
-  static int calculateDistanceKm(String from, String to) {
+  static int calculateDistanceKm(
+    String from,
+    String to, {
+    double? fromLat,
+    double? fromLng,
+    double? toLat,
+    double? toLng,
+  }) {
     final f = _sanitizeKey(from);
     final t = _sanitizeKey(to);
 
@@ -1210,11 +1402,16 @@ class CarpoolDistanceCalculator {
     final geoFrom = _findGeo(f);
     final geoTo = _findGeo(t);
 
-    if (geoFrom != null && geoTo != null) {
-      final straight = _haversine(geoFrom.lat, geoFrom.lng, geoTo.lat, geoTo.lng);
+    final fLat = fromLat ?? geoFrom?.lat;
+    final fLng = fromLng ?? geoFrom?.lng;
+    final tLat = toLat ?? geoTo?.lat;
+    final tLng = toLng ?? geoTo?.lng;
+
+    if (fLat != null && fLng != null && tLat != null && tLng != null) {
+      final straight = _haversine(fLat, fLng, tLat, tLng);
       // Multiply by 1.22 road winding factor for Indian highways
       final roadKm = (straight * 1.22).round();
-      return roadKm < 15 ? 15 : roadKm;
+      return roadKm < 5 ? 5 : roadKm;
     }
 
     // Deterministic fallback based on names so different locations NEVER return the exact same distance
@@ -1341,8 +1538,576 @@ class CarpoolDistanceCalculator {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // 7. ROUTE ADJUSTMENT & STOPOVER VALIDATION
+  // ══════════════════════════════════════════════════════════════════════════
+  /// Computes scalar projection along the start -> destination corridor.
+  /// 0.0 is at start, 1.0 is at destination.
+  static double calculateCorridorProgression({
+    required double startLat,
+    required double startLng,
+    required double destLat,
+    required double destLng,
+    required double pointLat,
+    required double pointLng,
+  }) {
+    final dLat = destLat - startLat;
+    final dLng = destLng - startLng;
+    final lenSq = dLat * dLat + dLng * dLng;
+    if (lenSq == 0) return 0.0;
+    return ((pointLat - startLat) * dLat + (pointLng - startLng) * dLng) / lenSq;
+  }
+
+  /// Orders a list of stopovers in geographic travel progression from start to destination
+  static List<String> orderStopoversInCorridor({
+    required String start,
+    required String destination,
+    required List<String> stopovers,
+    double? startLat,
+    double? startLng,
+    double? destLat,
+    double? destLng,
+  }) {
+    if (stopovers.length <= 1) return List.from(stopovers);
+
+    final sGeo = findGeo(start);
+    final dGeo = findGeo(destination);
+    final sLat = startLat ?? sGeo?.lat;
+    final sLng = startLng ?? sGeo?.lng;
+    final dLat = destLat ?? dGeo?.lat;
+    final dLng = destLng ?? dGeo?.lng;
+
+    if (sLat == null || sLng == null || dLat == null || dLng == null) {
+      return List.from(stopovers);
+    }
+
+    final stopoverProgress = <String, double>{};
+    for (final stop in stopovers) {
+      final geo = findGeo(stop);
+      if (geo != null) {
+        stopoverProgress[stop] = calculateCorridorProgression(
+          startLat: sLat,
+          startLng: sLng,
+          destLat: dLat,
+          destLng: dLng,
+          pointLat: geo.lat,
+          pointLng: geo.lng,
+        );
+      } else {
+        final d1 = calculateDistanceKm(start, stop);
+        final d2 = calculateDistanceKm(stop, destination);
+        final total = d1 + d2;
+        stopoverProgress[stop] = total > 0 ? (d1 / total) : 0.5;
+      }
+    }
+
+    final sorted = List<String>.from(stopovers)
+      ..sort((a, b) => (stopoverProgress[a] ?? 0.0).compareTo(stopoverProgress[b] ?? 0.0));
+    return sorted;
+  }
+
+  /// Calculates the route adjustment and detour validation for inserting a new stopover
+  static RouteAdjustment calculateRouteAdjustment({
+    required String start,
+    required String destination,
+    required List<String> currentStopovers,
+    required String newStopover,
+    double? startLat,
+    double? startLng,
+    double? destLat,
+    double? destLng,
+    double? candidateLat,
+    double? candidateLng,
+    double? deviationThresholdKm,
+  }) {
+    if (candidateLat != null && candidateLng != null) {
+      registerGeo(newStopover, candidateLat, candidateLng);
+    }
+
+    final sGeo = findGeo(start);
+    final dGeo = findGeo(destination);
+    final fLat = startLat ?? sGeo?.lat;
+    final fLng = startLng ?? sGeo?.lng;
+    final tLat = destLat ?? dGeo?.lat;
+    final tLng = destLng ?? dGeo?.lng;
+
+    // Filter out newStopover if already in currentStopovers to prevent duplicate detour
+    final baseStopovers = currentStopovers
+        .where((s) => s.toLowerCase().trim() != newStopover.toLowerCase().trim())
+        .toList();
+
+    // 1. Current total distance with base stopovers ordered along corridor
+    final orderedBase = orderStopoversInCorridor(
+      start: start,
+      destination: destination,
+      stopovers: baseStopovers,
+      startLat: fLat,
+      startLng: fLng,
+      destLat: tLat,
+      destLng: tLng,
+    );
+
+    int currentKm = 0;
+    String prev = start;
+    double? prevLat = fLat;
+    double? prevLng = fLng;
+    for (final stop in orderedBase) {
+      final stopGeo = findGeo(stop);
+      currentKm += calculateDistanceKm(
+        prev,
+        stop,
+        fromLat: prevLat,
+        fromLng: prevLng,
+        toLat: stopGeo?.lat,
+        toLng: stopGeo?.lng,
+      );
+      prev = stop;
+      prevLat = stopGeo?.lat;
+      prevLng = stopGeo?.lng;
+    }
+    currentKm += calculateDistanceKm(
+      prev,
+      destination,
+      fromLat: prevLat,
+      fromLng: prevLng,
+      toLat: tLat,
+      toLng: tLng,
+    );
+
+    // 2. Updated total distance with new stopover inserted into corridor progression
+    final combined = List<String>.from(baseStopovers)..add(newStopover);
+    final orderedUpdated = orderStopoversInCorridor(
+      start: start,
+      destination: destination,
+      stopovers: combined,
+      startLat: fLat,
+      startLng: fLng,
+      destLat: tLat,
+      destLng: tLng,
+    );
+
+    int updatedKm = 0;
+    prev = start;
+    prevLat = fLat;
+    prevLng = fLng;
+    for (final stop in orderedUpdated) {
+      final stopGeo = findGeo(stop);
+      final sLat = (stop == newStopover && candidateLat != null) ? candidateLat : stopGeo?.lat;
+      final sLng = (stop == newStopover && candidateLng != null) ? candidateLng : stopGeo?.lng;
+      updatedKm += calculateDistanceKm(
+        prev,
+        stop,
+        fromLat: prevLat,
+        fromLng: prevLng,
+        toLat: sLat,
+        toLng: sLng,
+      );
+      prev = stop;
+      prevLat = sLat;
+      prevLng = sLng;
+    }
+    updatedKm += calculateDistanceKm(
+      prev,
+      destination,
+      fromLat: prevLat,
+      fromLng: prevLng,
+      toLat: tLat,
+      toLng: tLng,
+    );
+
+    final additionalKm = max(0, updatedKm - currentKm);
+    final additionalMinutes = max(0, ((additionalKm / 58.0) * 60).round());
+    final currentDuration = estimateDuration(currentKm);
+    final updatedDuration = estimateDuration(updatedKm);
+
+    final threshold = deviationThresholdKm ??
+        max(defaultRouteDeviationThresholdKm, currentKm * 0.15);
+    final isOnRoute = additionalKm <= threshold;
+
+    return RouteAdjustment(
+      currentTotalKm: currentKm,
+      updatedTotalKm: updatedKm,
+      additionalKm: additionalKm,
+      currentDuration: currentDuration,
+      updatedDuration: updatedDuration,
+      additionalMinutes: additionalMinutes,
+      isOnRoute: isOnRoute,
+    );
+  }
+
+  /// Calculates the total multi-stop route distance in kilometers
+  static int calculateMultiStopDistance(
+    String start,
+    String destination,
+    List<String> stopovers, {
+    double? startLat,
+    double? startLng,
+    double? destLat,
+    double? destLng,
+  }) {
+    if (stopovers.isEmpty) {
+      return calculateDistanceKm(
+        start,
+        destination,
+        fromLat: startLat,
+        fromLng: startLng,
+        toLat: destLat,
+        toLng: destLng,
+      );
+    }
+    final ordered = orderStopoversInCorridor(
+      start: start,
+      destination: destination,
+      stopovers: stopovers,
+      startLat: startLat,
+      startLng: startLng,
+      destLat: destLat,
+      destLng: destLng,
+    );
+    int total = 0;
+    String prev = start;
+    double? prevLat = startLat;
+    double? prevLng = startLng;
+    for (final stop in ordered) {
+      final stopGeo = findGeo(stop);
+      total += calculateDistanceKm(
+        prev,
+        stop,
+        fromLat: prevLat,
+        fromLng: prevLng,
+        toLat: stopGeo?.lat,
+        toLng: stopGeo?.lng,
+      );
+      prev = stop;
+      prevLat = stopGeo?.lat;
+      prevLng = stopGeo?.lng;
+    }
+    total += calculateDistanceKm(
+      prev,
+      destination,
+      fromLat: prevLat,
+      fromLng: prevLng,
+      toLat: destLat,
+      toLng: destLng,
+    );
+    return total;
+  }
+
+  /// Generates the driving route polyline waypoints connecting origin and destination
+  static List<({double lat, double lng})> generateDrivingRouteWaypoints({
+    required double fromLat,
+    required double fromLng,
+    required double toLat,
+    required double toLng,
+  }) {
+    final waypoints = <({double lat, double lng})>[
+      (lat: fromLat, lng: fromLng),
+    ];
+
+    final dLat = toLat - fromLat;
+    final dLng = toLng - fromLng;
+    final totalDist = sqrt(dLat * dLat + dLng * dLng);
+
+    if (totalDist > 0.0001) {
+      final int steps = (totalDist * 16).clamp(8, 24).toInt();
+      for (int i = 1; i < steps; i++) {
+        final t = i / steps;
+        final lat = fromLat + dLat * t;
+        final lng = fromLng + dLng * t;
+        waypoints.add((lat: lat, lng: lng));
+      }
+    }
+
+    waypoints.add((lat: toLat, lng: toLng));
+    return waypoints;
+  }
+
+  /// Calculates minimum geodesic distance in kilometers from a coordinate to a driving polyline
+  static double distanceToPolyline(
+    double lat,
+    double lng,
+    List<({double lat, double lng})> polyline,
+  ) {
+    if (polyline.isEmpty) return 9999.0;
+    double minKm = 9999.0;
+    for (int i = 0; i < polyline.length - 1; i++) {
+      final p1 = polyline[i];
+      final p2 = polyline[i + 1];
+      final d = _distToSegmentKm(lat, lng, p1.lat, p1.lng, p2.lat, p2.lng);
+      if (d < minKm) minKm = d;
+    }
+    return minKm;
+  }
+
+  static double _distToSegmentKm(
+    double px,
+    double py,
+    double x1,
+    double y1,
+    double x2,
+    double y2,
+  ) {
+    final dx = x2 - x1;
+    final dy = y2 - y1;
+    final lenSq = dx * dx + dy * dy;
+    if (lenSq == 0) return _haversine(px, py, x1, y1);
+
+    final t = (((px - x1) * dx + (py - y1) * dy) / lenSq).clamp(0.0, 1.0);
+    final projLat = x1 + t * dx;
+    final projLng = y1 + t * dy;
+    return _haversine(px, py, projLat, projLng);
+  }
+
+  /// Automatically discovers cities and towns strictly along the active driving route
+  static List<PlaceGeoInfo> getRouteBasedSuggestions({
+    required String start,
+    required String destination,
+    double? startLat,
+    double? startLng,
+    double? destLat,
+    double? destLng,
+  }) {
+    final sGeo = findGeo(start);
+    final dGeo = findGeo(destination);
+
+    final fromLat = startLat ?? sGeo?.lat;
+    final fromLng = startLng ?? sGeo?.lng;
+    final toLat = destLat ?? dGeo?.lat;
+    final toLng = destLng ?? dGeo?.lng;
+
+    if (fromLat == null || fromLng == null || toLat == null || toLng == null) {
+      return const [];
+    }
+
+    final polyline = generateDrivingRouteWaypoints(
+      fromLat: fromLat,
+      fromLng: fromLng,
+      toLat: toLat,
+      toLng: toLng,
+    );
+
+    final directKm = calculateDistanceKm(
+      start,
+      destination,
+      fromLat: fromLat,
+      fromLng: fromLng,
+      toLat: toLat,
+      toLng: toLng,
+    );
+    final startKey = _sanitizeKey(start);
+    final destKey = _sanitizeKey(destination);
+
+    final candidates = <({
+      PlaceGeoInfo geo,
+      double distToPolyline,
+      int detourKm,
+      double progress
+    })>[];
+
+    final allPlaces = <String, PlaceGeoInfo>{
+      ...placeGeoDatabase,
+      ..._dynamicGeoCache,
+    };
+
+    final minLat = min(fromLat, toLat) - 0.28;
+    final maxLat = max(fromLat, toLat) + 0.28;
+    final minLng = min(fromLng, toLng) - 0.28;
+    final maxLng = max(fromLng, toLng) + 0.28;
+
+    for (final entry in allPlaces.entries) {
+      final key = entry.key;
+      if (key == startKey || key == destKey) continue;
+      if (startKey.contains(key) || key.contains(startKey)) continue;
+      if (destKey.contains(key) || key.contains(destKey)) continue;
+
+      final geo = entry.value;
+      if (geo.lat < minLat ||
+          geo.lat > maxLat ||
+          geo.lng < minLng ||
+          geo.lng > maxLng) {
+        continue;
+      }
+
+      final dToPoly = distanceToPolyline(geo.lat, geo.lng, polyline);
+      final d1 = calculateDistanceKm(
+        start,
+        geo.name,
+        fromLat: fromLat,
+        fromLng: fromLng,
+        toLat: geo.lat,
+        toLng: geo.lng,
+      );
+      final d2 = calculateDistanceKm(
+        geo.name,
+        destination,
+        fromLat: geo.lat,
+        fromLng: geo.lng,
+        toLat: toLat,
+        toLng: toLng,
+      );
+      final detour = max(0, (d1 + d2) - directKm);
+
+      // Route-aware filter: must be within 32 km of the corridor and detour <= max(35 km, directKm * 0.22)
+      final maxDetour = max(35, (directKm * 0.22).round());
+      if (dToPoly <= 32.0 && detour <= maxDetour) {
+        final progress = _haversine(fromLat, fromLng, geo.lat, geo.lng);
+        candidates.add((
+          geo: geo,
+          distToPolyline: dToPoly,
+          detourKm: detour,
+          progress: progress,
+        ));
+      }
+    }
+
+    // Sort in travel progression order from start to destination
+    candidates.sort((a, b) => a.progress.compareTo(b.progress));
+
+    // Evenly space intermediate cities and towns along the route corridor
+    final double minSpacingKm = max(10.0, directKm * 0.10);
+    final spaced = <PlaceGeoInfo>[];
+    double lastProgress = -999.0;
+    final seen = <String>{};
+
+    for (final c in candidates) {
+      final norm = c.geo.name.toLowerCase();
+      if (seen.contains(norm)) continue;
+
+      // Ensure the stop is not immediately at the start or end doorstep
+      if (c.progress < 5.0 || (directKm - c.progress) < 5.0) continue;
+
+      if (spaced.isEmpty || (c.progress - lastProgress) >= minSpacingKm) {
+        spaced.add(c.geo);
+        seen.add(norm);
+        lastProgress = c.progress;
+      }
+      if (spaced.length >= 6) break;
+    }
+
+    if (spaced.isNotEmpty) {
+      return spaced;
+    }
+
+    final result = <PlaceGeoInfo>[];
+    for (final c in candidates) {
+      final norm = c.geo.name.toLowerCase();
+      if (!seen.contains(norm)) {
+        seen.add(norm);
+        result.add(c.geo);
+      }
+    }
+
+    return result.take(5).toList();
+  }
+
+  /// Validates whether an arbitrary location is on or sufficiently close to the driving route
+  static RouteAdjustment validateLocationOnRoute({
+    required String start,
+    required String destination,
+    required String candidateName,
+    double? candidateLat,
+    double? candidateLng,
+    double? startLat,
+    double? startLng,
+    double? destLat,
+    double? destLng,
+    List<String> currentStopovers = const [],
+    double? deviationThresholdKm,
+  }) {
+    if (candidateLat != null && candidateLng != null) {
+      registerGeo(candidateName, candidateLat, candidateLng);
+    }
+
+    final adj = calculateRouteAdjustment(
+      start: start,
+      destination: destination,
+      currentStopovers: currentStopovers,
+      newStopover: candidateName,
+      startLat: startLat,
+      startLng: startLng,
+      destLat: destLat,
+      destLng: destLng,
+      candidateLat: candidateLat,
+      candidateLng: candidateLng,
+      deviationThresholdKm: deviationThresholdKm,
+    );
+
+    final cGeo = (candidateLat != null && candidateLng != null)
+        ? null
+        : findGeo(candidateName);
+    final lat = candidateLat ?? cGeo?.lat;
+    final lng = candidateLng ?? cGeo?.lng;
+
+    final sGeo = findGeo(start);
+    final dGeo = findGeo(destination);
+    final fLat = startLat ?? sGeo?.lat;
+    final fLng = startLng ?? sGeo?.lng;
+    final tLat = destLat ?? dGeo?.lat;
+    final tLng = destLng ?? dGeo?.lng;
+
+    bool isPolylineClose = true;
+    if (lat != null &&
+        lng != null &&
+        fLat != null &&
+        fLng != null &&
+        tLat != null &&
+        tLng != null) {
+      final polyline = generateDrivingRouteWaypoints(
+        fromLat: fLat,
+        fromLng: fLng,
+        toLat: tLat,
+        toLng: tLng,
+      );
+      final distPoly = distanceToPolyline(lat, lng, polyline);
+      // Beyond 38 km corridor buffer from the polyline corridor is outside the route
+      if (distPoly > 38.0) {
+        isPolylineClose = false;
+      }
+    }
+
+    final threshold = deviationThresholdKm ?? defaultRouteDeviationThresholdKm;
+    final maxAllowedDetour = max(threshold, adj.currentTotalKm * 0.18);
+    final isDetourAcceptable = adj.additionalKm <= maxAllowedDetour;
+
+    final bool isOnRoute = isPolylineClose && isDetourAcceptable;
+
+    return RouteAdjustment(
+      currentTotalKm: adj.currentTotalKm,
+      updatedTotalKm: adj.updatedTotalKm,
+      additionalKm: adj.additionalKm,
+      currentDuration: adj.currentDuration,
+      updatedDuration: adj.updatedDuration,
+      additionalMinutes: adj.additionalMinutes,
+      isOnRoute: isOnRoute,
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // PRIVATE HELPERS
   // ══════════════════════════════════════════════════════════════════════════
+  static final Map<String, PlaceGeoInfo> _dynamicGeoCache = {};
+
+  /// Dynamically registers any town, village, mandal or locality found via live search
+  static void registerGeo(
+    String name,
+    double lat,
+    double lng, {
+    String type = 'Town / Village',
+    String district = '',
+    String state = '',
+  }) {
+    final key = _sanitizeKey(name);
+    if (key.isNotEmpty) {
+      _dynamicGeoCache[key] = PlaceGeoInfo(
+        name: name,
+        lat: lat,
+        lng: lng,
+        type: type,
+        district: district,
+        state: state,
+      );
+    }
+  }
+
   static String _sanitizeKey(String raw) {
     final parts = raw.split(',');
     final first = parts.isNotEmpty ? parts.first : raw;
@@ -1350,6 +2115,12 @@ class CarpoolDistanceCalculator {
   }
 
   static PlaceGeoInfo? _findGeo(String key) {
+    if (_dynamicGeoCache.containsKey(key)) return _dynamicGeoCache[key];
+    for (final entry in _dynamicGeoCache.entries) {
+      if (key.contains(entry.key) || entry.key.contains(key)) {
+        return entry.value;
+      }
+    }
     if (placeGeoDatabase.containsKey(key)) return placeGeoDatabase[key];
     for (final entry in placeGeoDatabase.entries) {
       if (key.contains(entry.key) || entry.key.contains(key)) {
@@ -1446,5 +2217,35 @@ class DistanceResult {
     required this.durationText,
     this.isLive = false,
   });
+}
+
+/// Clean Architecture Route Adjustment result
+class RouteAdjustment {
+  final int currentTotalKm;
+  final int updatedTotalKm;
+  final int additionalKm;
+  final String currentDuration;
+  final String updatedDuration;
+  final int additionalMinutes;
+  final bool isOnRoute;
+
+  const RouteAdjustment({
+    required this.currentTotalKm,
+    required this.updatedTotalKm,
+    required this.additionalKm,
+    required this.currentDuration,
+    required this.updatedDuration,
+    required this.additionalMinutes,
+    required this.isOnRoute,
+  });
+
+  String get additionalTimeText {
+    if (additionalMinutes <= 0) return '0 min';
+    final hours = additionalMinutes ~/ 60;
+    final mins = additionalMinutes % 60;
+    if (hours == 0) return '$mins min';
+    if (mins == 0) return '$hours hr';
+    return '$hours hr $mins min';
+  }
 }
 

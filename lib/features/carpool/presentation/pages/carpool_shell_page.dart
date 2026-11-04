@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:pathway/features/carpool/presentation/pages/carpool_publish_ride_page.dart';
 
 import '../../../../core/carpool_core.dart';
 import '../../data/datasources/carpool_mock_data_source.dart';
@@ -17,7 +16,6 @@ import '../bloc/carpool_wallet_bloc.dart';
 import 'carpool_home_page.dart';
 import 'carpool_messages_page.dart';
 import 'carpool_my_rides_page.dart';
-import 'carpool_offer_ride_page.dart';
 import 'carpool_profile_page.dart';
 
 /// Hosts the 4 tabs + the centre "+" (Offer a Ride) button.
@@ -87,7 +85,6 @@ class _CarpoolShellView extends StatelessWidget {
   static const List<Widget> _tabs = [
     CarpoolHomePage(),
     CarpoolMyRidesPage(),
-    CarpoolPublishRidePage(),
     CarpoolMessagesPage(),
     CarpoolProfilePage(),
   ];
@@ -106,21 +103,6 @@ class _CarpoolShellView extends StatelessWidget {
                   currentIndex: index,
                   unreadMessages: messages.unreadCount,
                   onTap: context.read<CarpoolNavCubit>().select,
-                  onCenterTap: () {
-                    final homeBloc = context.read<CarpoolHomeBloc>();
-                    final navCubit = context.read<CarpoolNavCubit>();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MultiBlocProvider(
-                          providers: [
-                            BlocProvider.value(value: homeBloc),
-                            BlocProvider.value(value: navCubit),
-                          ],
-                          child: const CarpoolOfferRidePage(),
-                        ),
-                      ),
-                    );
-                  },
                 ),
               ),
         );

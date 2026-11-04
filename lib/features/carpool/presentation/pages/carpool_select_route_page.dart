@@ -406,6 +406,10 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
                                             color: Color(0xFF9E98BE),
                                           ),
                                           border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          errorBorder: InputBorder.none,
+                                          disabledBorder: InputBorder.none,
                                           isDense: true,
                                           contentPadding: EdgeInsets.symmetric(
                                             vertical: 4,
@@ -526,6 +530,10 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
                                             color: Color(0xFF9E98BE),
                                           ),
                                           border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          errorBorder: InputBorder.none,
+                                          disabledBorder: InputBorder.none,
                                           isDense: true,
                                           contentPadding: EdgeInsets.symmetric(
                                             vertical: 4,

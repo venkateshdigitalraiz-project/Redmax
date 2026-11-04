@@ -10,6 +10,7 @@ import '../../domain/usecases/carpool_usecases.dart';
 import '../bloc/carpool_offer_ride_bloc.dart';
 import 'carpool_ride_summary_page.dart';
 import 'carpool_select_route_page.dart';
+import 'carpool_stopovers_page.dart';
 
 /// Screen "Publish a Ride" – matches the exact design screenshot:
 /// 1. Top bar with clean back button, "Publish a Ride" title, and tune icon.
@@ -24,7 +25,8 @@ class CarpoolPublishRidePage extends StatelessWidget {
 
   /// Navigates to [CarpoolPublishRidePage] safely on the root navigator.
   static Future<void> show(BuildContext context, [CarpoolOfferRideBloc? bloc]) {
-    final b = bloc ??
+    final b =
+        bloc ??
         () {
           try {
             return context.read<CarpoolOfferRideBloc>();
@@ -82,9 +84,9 @@ class _PublishRideViewState extends State<_PublishRideView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context
-            .read<CarpoolOfferRideBloc>()
-            .add(const CarpoolOfferResetStatus());
+        context.read<CarpoolOfferRideBloc>().add(
+          const CarpoolOfferResetStatus(),
+        );
       }
     });
   }
@@ -127,19 +129,19 @@ class _PublishRideViewState extends State<_PublishRideView> {
 
     Navigator.of(context, rootNavigator: true)
         .push(
-      MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: bloc,
-          child: CarpoolRideSummaryPage(bloc: bloc),
-        ),
-      ),
-    )
+          MaterialPageRoute(
+            builder: (_) => BlocProvider.value(
+              value: bloc,
+              child: CarpoolStopoversPage(bloc: bloc),
+            ),
+          ),
+        )
         .then((_) {
-      if (mounted) {
-        setState(() => _isNavigating = false);
-        bloc.add(const CarpoolOfferResetStatus());
-      }
-    });
+          if (mounted) {
+            setState(() => _isNavigating = false);
+            bloc.add(const CarpoolOfferResetStatus());
+          }
+        });
   }
 
   Future<void> _pickDate(BuildContext context, CarpoolOfferRideState s) async {
@@ -189,8 +191,8 @@ class _PublishRideViewState extends State<_PublishRideView> {
     );
     if (picked != null && context.mounted) {
       context.read<CarpoolOfferRideBloc>().add(
-            CarpoolOfferTimeChanged(picked.hour, picked.minute),
-          );
+        CarpoolOfferTimeChanged(picked.hour, picked.minute),
+      );
     }
   }
 
@@ -374,40 +376,40 @@ class _PublishRideViewState extends State<_PublishRideView> {
                                 const _CardDivider(),
 
                                 // Seats Available Row with Stepper
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                    horizontal: 4,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.event_seat_rounded,
-                                        color: AppColors.primaryDark,
-                                        size: 26,
-                                      ),
-                                      const SizedBox(width: 14),
-                                      const Text(
-                                        'Seats Available',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14.5,
-                                          color: Color(0xFF140D43),
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      _SeatsStepper(
-                                        count: s.seats,
-                                        onMinus: () => bloc.add(
-                                          const CarpoolOfferSeatsChanged(-1),
-                                        ),
-                                        onPlus: () => bloc.add(
-                                          const CarpoolOfferSeatsChanged(1),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                // Padding(
+                                //   padding: const EdgeInsets.symmetric(
+                                //     vertical: 8,
+                                //     horizontal: 4,
+                                //   ),
+                                //   child: Row(
+                                //     children: [
+                                //       const Icon(
+                                //         Icons.event_seat_rounded,
+                                //         color: AppColors.primaryDark,
+                                //         size: 26,
+                                //       ),
+                                //       const SizedBox(width: 14),
+                                //       const Text(
+                                //         'Seats Available',
+                                //         style: TextStyle(
+                                //           fontWeight: FontWeight.w700,
+                                //           fontSize: 14.5,
+                                //           color: Color(0xFF140D43),
+                                //         ),
+                                //       ),
+                                //       const Spacer(),
+                                //       _SeatsStepper(
+                                //         count: s.seats,
+                                //         onMinus: () => bloc.add(
+                                //           const CarpoolOfferSeatsChanged(-1),
+                                //         ),
+                                //         onPlus: () => bloc.add(
+                                //           const CarpoolOfferSeatsChanged(1),
+                                //         ),
+                                //       ),
+                                //     ],
+                                //   ),
+                                // ),
                               ],
                             ),
                           ),
@@ -420,7 +422,8 @@ class _PublishRideViewState extends State<_PublishRideView> {
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: _PublishButton(
                             isLoading: _isNavigating,
-                            onPressed: () => _onPublishPressed(context, bloc, s),
+                            onPressed: () =>
+                                _onPublishPressed(context, bloc, s),
                           ),
                         ),
                       ],

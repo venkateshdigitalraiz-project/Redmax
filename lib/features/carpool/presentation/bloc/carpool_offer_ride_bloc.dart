@@ -58,6 +58,23 @@ class CarpoolOfferSeatsChanged extends CarpoolOfferRideEvent {
   List<Object?> get props => [delta];
 }
 
+class CarpoolOfferPriceChanged extends CarpoolOfferRideEvent {
+  const CarpoolOfferPriceChanged(this.delta, {this.currentBasePrice});
+  final int delta;
+  final int? currentBasePrice;
+
+  @override
+  List<Object?> get props => [delta, currentBasePrice];
+}
+
+class CarpoolOfferPricePerSeatSet extends CarpoolOfferRideEvent {
+  const CarpoolOfferPricePerSeatSet(this.price);
+  final int price;
+
+  @override
+  List<Object?> get props => [price];
+}
+
 class CarpoolOfferRideTypeChanged extends CarpoolOfferRideEvent {
   const CarpoolOfferRideTypeChanged(this.type);
   final CarpoolRideType type;
@@ -67,6 +84,47 @@ class CarpoolOfferRideTypeChanged extends CarpoolOfferRideEvent {
 
 class CarpoolOfferPublishPressed extends CarpoolOfferRideEvent {
   const CarpoolOfferPublishPressed();
+}
+
+class CarpoolOfferStopoverToggled extends CarpoolOfferRideEvent {
+  const CarpoolOfferStopoverToggled(this.stopover);
+  final String stopover;
+
+  @override
+  List<Object?> get props => [stopover];
+}
+
+class CarpoolOfferStopoverAdded extends CarpoolOfferRideEvent {
+  const CarpoolOfferStopoverAdded(this.stopover);
+  final String stopover;
+
+  @override
+  List<Object?> get props => [stopover];
+}
+
+class CarpoolOfferStopoverRemoved extends CarpoolOfferRideEvent {
+  const CarpoolOfferStopoverRemoved(this.stopover);
+  final String stopover;
+
+  @override
+  List<Object?> get props => [stopover];
+}
+
+class CarpoolOfferStopoversReordered extends CarpoolOfferRideEvent {
+  const CarpoolOfferStopoversReordered(this.oldIndex, this.newIndex);
+  final int oldIndex;
+  final int newIndex;
+
+  @override
+  List<Object?> get props => [oldIndex, newIndex];
+}
+
+class CarpoolOfferRouteSuggestionsLoaded extends CarpoolOfferRideEvent {
+  const CarpoolOfferRouteSuggestionsLoaded(this.suggestedStopovers);
+  final List<String> suggestedStopovers;
+
+  @override
+  List<Object?> get props => [suggestedStopovers];
 }
 
 class CarpoolOfferResetStatus extends CarpoolOfferRideEvent {
@@ -83,10 +141,13 @@ class CarpoolOfferRideState extends Equatable {
     this.toLat = 16.5062,
     this.toLng = 80.6480,
     this.seats = 3,
+    this.pricePerSeat,
     this.rideType = CarpoolRideType.normal,
     this.status = CarpoolStatus.initial,
     this.publishedRide,
     this.error,
+    this.stopovers = const [],
+    this.selectedStopovers = const {},
   });
 
   factory CarpoolOfferRideState.initial() {
@@ -99,6 +160,9 @@ class CarpoolOfferRideState extends Equatable {
       toLat: 16.5062,
       toLng: 80.6480,
       departure: DateTime(n.year, n.month, n.day, 9),
+      stopovers: const [],
+      selectedStopovers: const {},
+      pricePerSeat: null,
     );
   }
 
@@ -110,10 +174,13 @@ class CarpoolOfferRideState extends Equatable {
   final double toLng;
   final DateTime departure;
   final int seats;
+  final int? pricePerSeat;
   final CarpoolRideType rideType;
   final CarpoolStatus status;
   final CarpoolRideEntity? publishedRide;
   final String? error;
+  final List<String> stopovers;
+  final Set<String> selectedStopovers;
 
   bool get isValid =>
       from.trim().isNotEmpty &&
@@ -130,10 +197,14 @@ class CarpoolOfferRideState extends Equatable {
     double? toLng,
     DateTime? departure,
     int? seats,
+    int? pricePerSeat,
+    bool clearPrice = false,
     CarpoolRideType? rideType,
     CarpoolStatus? status,
     CarpoolRideEntity? publishedRide,
     String? error,
+    List<String>? stopovers,
+    Set<String>? selectedStopovers,
   }) =>
       CarpoolOfferRideState(
         from: from ?? this.from,
@@ -144,10 +215,13 @@ class CarpoolOfferRideState extends Equatable {
         toLng: toLng ?? this.toLng,
         departure: departure ?? this.departure,
         seats: seats ?? this.seats,
+        pricePerSeat: clearPrice ? null : (pricePerSeat ?? this.pricePerSeat),
         rideType: rideType ?? this.rideType,
         status: status ?? this.status,
         publishedRide: publishedRide ?? this.publishedRide,
         error: error,
+        stopovers: stopovers ?? this.stopovers,
+        selectedStopovers: selectedStopovers ?? this.selectedStopovers,
       );
 
   @override
@@ -160,10 +234,13 @@ class CarpoolOfferRideState extends Equatable {
         toLng,
         departure,
         seats,
+        pricePerSeat,
         rideType,
         status,
         publishedRide,
         error,
+        stopovers,
+        selectedStopovers,
       ];
 }
 
@@ -192,9 +269,79 @@ class CarpoolOfferRideBloc
     });
     on<CarpoolOfferSeatsChanged>((e, emit) =>
         emit(state.copyWith(seats: (state.seats + e.delta).clamp(1, 6))));
+    on<CarpoolOfferPriceChanged>((e, emit) {
+      final base = state.pricePerSeat ?? e.currentBasePrice ?? 100;
+      final updated = (base + e.delta).clamp(10, 15000);
+      emit(state.copyWith(pricePerSeat: updated));
+    });
+    on<CarpoolOfferPricePerSeatSet>((e, emit) {
+      emit(state.copyWith(pricePerSeat: e.price.clamp(10, 15000)));
+    });
     on<CarpoolOfferRideTypeChanged>(
         (e, emit) => emit(state.copyWith(rideType: e.type)));
     on<CarpoolOfferPublishPressed>(_onPublish);
+    on<CarpoolOfferStopoverToggled>((e, emit) {
+      final updated = Set<String>.from(state.selectedStopovers);
+      if (updated.contains(e.stopover)) {
+        updated.remove(e.stopover);
+      } else {
+        updated.add(e.stopover);
+      }
+      emit(state.copyWith(selectedStopovers: updated));
+    });
+    on<CarpoolOfferStopoverAdded>((e, emit) {
+      final trimmed = e.stopover.trim();
+      if (trimmed.isEmpty) return;
+      final updatedList = List<String>.from(state.stopovers);
+      if (!updatedList.contains(trimmed)) {
+        updatedList.add(trimmed);
+      }
+      final orderedList = CarpoolDistanceCalculator.orderStopoversInCorridor(
+        start: state.from,
+        destination: state.to,
+        stopovers: updatedList,
+        startLat: state.fromLat,
+        startLng: state.fromLng,
+        destLat: state.toLat,
+        destLng: state.toLng,
+      );
+      final updatedSelected = Set<String>.from(state.selectedStopovers)..add(trimmed);
+      emit(state.copyWith(
+        stopovers: orderedList,
+        selectedStopovers: updatedSelected,
+      ));
+    });
+    on<CarpoolOfferStopoverRemoved>((e, emit) {
+      final updatedList = List<String>.from(state.stopovers)..remove(e.stopover);
+      final updatedSelected = Set<String>.from(state.selectedStopovers)..remove(e.stopover);
+      emit(state.copyWith(
+        stopovers: updatedList,
+        selectedStopovers: updatedSelected,
+      ));
+    });
+    on<CarpoolOfferStopoversReordered>((e, emit) {
+      final updatedList = List<String>.from(state.stopovers);
+      var newIdx = e.newIndex;
+      if (e.oldIndex < newIdx) {
+        newIdx -= 1;
+      }
+      if (e.oldIndex < 0 || e.oldIndex >= updatedList.length || newIdx < 0 || newIdx >= updatedList.length) {
+        return;
+      }
+      final item = updatedList.removeAt(e.oldIndex);
+      updatedList.insert(newIdx, item);
+      emit(state.copyWith(stopovers: updatedList));
+    });
+    on<CarpoolOfferRouteSuggestionsLoaded>((e, emit) {
+      final validSelected = state.selectedStopovers
+          .where((s) => e.suggestedStopovers.contains(s))
+          .toSet();
+
+      emit(state.copyWith(
+        stopovers: e.suggestedStopovers,
+        selectedStopovers: validSelected,
+      ));
+    });
   }
 
   final CarpoolPublishRideUseCase _publishRide;
@@ -213,6 +360,8 @@ class CarpoolOfferRideBloc
       from: event.value,
       fromLat: lat,
       fromLng: lng,
+      stopovers: const [],
+      selectedStopovers: const {},
       status: CarpoolStatus.initial,
       error: null,
     ));
@@ -232,6 +381,8 @@ class CarpoolOfferRideBloc
       to: event.value,
       toLat: lat,
       toLng: lng,
+      stopovers: const [],
+      selectedStopovers: const {},
       status: CarpoolStatus.initial,
       error: null,
     ));
@@ -248,6 +399,8 @@ class CarpoolOfferRideBloc
       fromLng: state.toLng,
       toLat: state.fromLat,
       toLng: state.fromLng,
+      stopovers: const [],
+      selectedStopovers: const {},
       status: CarpoolStatus.initial,
       error: null,
     ));
@@ -263,6 +416,7 @@ class CarpoolOfferRideBloc
         departure: state.departure,
         seats: state.seats,
         rideType: state.rideType,
+        pricePerSeat: state.pricePerSeat,
       ));
       emit(state.copyWith(status: CarpoolStatus.success, publishedRide: ride));
     } catch (e) {

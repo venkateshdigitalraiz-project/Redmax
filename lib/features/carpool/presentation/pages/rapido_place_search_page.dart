@@ -413,7 +413,7 @@ class _RapidoPlaceSearchViewState extends State<_RapidoPlaceSearchView> {
                           children: [
                             Text(
                               state.query.trim().isEmpty
-                                  ? 'POPULAR PLACES'
+                                  ? 'SEARCH LOCATION'
                                   : 'SEARCH RESULTS',
                               style: const TextStyle(
                                 fontSize: 11.5,
@@ -496,19 +496,22 @@ class _RapidoPlaceSearchViewState extends State<_RapidoPlaceSearchView> {
     }
 
     if (state.predictions.isEmpty) {
+      final isQueryEmpty = state.query.trim().isEmpty;
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
         child: Column(
           children: [
-            const Icon(
-              Icons.location_off_rounded,
-              color: Color(0xFF9E98BE),
+            Icon(
+              isQueryEmpty ? Icons.search_rounded : Icons.location_off_rounded,
+              color: const Color(0xFF9E98BE),
               size: 44,
             ),
             const SizedBox(height: 12),
-            const Text(
-              'No matching locations found',
-              style: TextStyle(
+            Text(
+              isQueryEmpty
+                  ? 'Search towns, villages, or cities'
+                  : 'No matching locations found',
+              style: const TextStyle(
                 fontSize: 14.5,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF140D43),
@@ -516,7 +519,9 @@ class _RapidoPlaceSearchViewState extends State<_RapidoPlaceSearchView> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Try typing a city name, district or major junction',
+              isQueryEmpty
+                  ? 'Type any village, mandal, town, or city name'
+                  : 'Try typing a village, mandal, or town name',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12.5,

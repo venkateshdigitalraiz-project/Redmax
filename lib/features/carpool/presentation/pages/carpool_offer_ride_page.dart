@@ -10,8 +10,6 @@ import '../../domain/usecases/carpool_usecases.dart';
 import '../bloc/carpool_home_bloc.dart';
 import '../bloc/carpool_nav_cubit.dart';
 import '../bloc/carpool_offer_ride_bloc.dart';
-import 'carpool_publish_ride_page.dart';
-import 'rapido_place_search_page.dart';
 import '../widgets/carpool_route_selector_card.dart';
 
 /// Screen "Offer a Ride" matching the exact design screenshot:
@@ -248,99 +246,98 @@ class _OfferRideView extends StatelessWidget {
                         const SizedBox(height: 12),
 
                         // Carpool / Courier Toggle Pill
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Container(
-                            height: 48,
-                            padding: const EdgeInsets.all(3.5),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: const Color(0xFFEDE8FF),
-                                width: 1.2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF5B3BF5,
-                                  ).withOpacity(0.06),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                // Carpool Tab (Active)
-                                Expanded(
-                                  child: Container(
-                                    height: double.infinity,
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF5428E8),
-                                          Color(0xFF240DA2),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(
-                                            0xFF4C1CDD,
-                                          ).withOpacity(0.35),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: const Text(
-                                      'Carpool',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                        // Padding(
+                        //   padding: const EdgeInsets.symmetric(horizontal: 20),
+                        //   child: Container(
+                        //     height: 48,
+                        //     padding: const EdgeInsets.all(3.5),
+                        //     decoration: BoxDecoration(
+                        //       color: Colors.white,
+                        //       borderRadius: BorderRadius.circular(24),
+                        //       border: Border.all(
+                        //         color: const Color(0xFFEDE8FF),
+                        //         width: 1.2,
+                        //       ),
+                        //       boxShadow: [
+                        //         BoxShadow(
+                        //           color: const Color(
+                        //             0xFF5B3BF5,
+                        //           ).withOpacity(0.06),
+                        //           blurRadius: 12,
+                        //           offset: const Offset(0, 4),
+                        //         ),
+                        //       ],
+                        //     ),
+                        //     child: Row(
+                        //       children: [
+                        //         // Carpool Tab (Active)
+                        //         Expanded(
+                        //           child: Container(
+                        //             height: double.infinity,
+                        //             decoration: BoxDecoration(
+                        //               gradient: const LinearGradient(
+                        //                 colors: [
+                        //                   Color(0xFF5428E8),
+                        //                   Color(0xFF240DA2),
+                        //                 ],
+                        //               ),
+                        //               borderRadius: BorderRadius.circular(20),
+                        //               boxShadow: [
+                        //                 BoxShadow(
+                        //                   color: const Color(
+                        //                     0xFF4C1CDD,
+                        //                   ).withOpacity(0.35),
+                        //                   blurRadius: 8,
+                        //                   offset: const Offset(0, 3),
+                        //                 ),
+                        //               ],
+                        //             ),
+                        //             alignment: Alignment.center,
+                        //             child: const Text(
+                        //               'Carpool',
+                        //               style: TextStyle(
+                        //                 color: Colors.white,
+                        //                 fontWeight: FontWeight.w700,
+                        //                 fontSize: 15,
+                        //               ),
+                        //             ),
+                        //           ),
+                        //         ),
 
-                                // Courier Tab (Inactive)
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Courier is coming soon',
-                                          ),
-                                          duration: Duration(seconds: 1),
-                                        ),
-                                      );
-                                    },
-                                    behavior: HitTestBehavior.opaque,
-                                    child: Container(
-                                      height: double.infinity,
-                                      alignment: Alignment.center,
-                                      child: const Text(
-                                        'Courier',
-                                        style: TextStyle(
-                                          color: Color(0xFF140D43),
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 15,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
+                        //         // Courier Tab (Inactive)
+                        //         Expanded(
+                        //           child: GestureDetector(
+                        //             onTap: () {
+                        //               ScaffoldMessenger.of(
+                        //                 context,
+                        //               ).showSnackBar(
+                        //                 const SnackBar(
+                        //                   content: Text(
+                        //                     'Courier is coming soon',
+                        //                   ),
+                        //                   duration: Duration(seconds: 1),
+                        //                 ),
+                        //               );
+                        //             },
+                        //             behavior: HitTestBehavior.opaque,
+                        //             child: Container(
+                        //               height: double.infinity,
+                        //               alignment: Alignment.center,
+                        //               child: const Text(
+                        //                 'Courier',
+                        //                 style: TextStyle(
+                        //                   color: Color(0xFF140D43),
+                        //                   fontWeight: FontWeight.w700,
+                        //                   fontSize: 15,
+                        //                 ),
+                        //               ),
+                        //             ),
+                        //           ),
+                        //         ),
+                        //       ],
+                        //     ),
+                        //   ),
+                        // ),
                         const SizedBox(height: 16),
 
                         // Route & Details Card
@@ -379,17 +376,21 @@ class _OfferRideView extends StatelessWidget {
                                   onToChanged: (v) =>
                                       bloc.add(CarpoolOfferToChanged(v)),
                                   onFromLocationChanged: (name, lat, lng) =>
-                                      bloc.add(CarpoolOfferFromChanged(
-                                        name,
-                                        lat: lat,
-                                        lng: lng,
-                                      )),
+                                      bloc.add(
+                                        CarpoolOfferFromChanged(
+                                          name,
+                                          lat: lat,
+                                          lng: lng,
+                                        ),
+                                      ),
                                   onToLocationChanged: (name, lat, lng) =>
-                                      bloc.add(CarpoolOfferToChanged(
-                                        name,
-                                        lat: lat,
-                                        lng: lng,
-                                      )),
+                                      bloc.add(
+                                        CarpoolOfferToChanged(
+                                          name,
+                                          lat: lat,
+                                          lng: lng,
+                                        ),
+                                      ),
                                   onSwap: () =>
                                       bloc.add(const CarpoolOfferSwapPressed()),
                                 ),
@@ -603,141 +604,140 @@ class _OfferRideView extends StatelessWidget {
                         const SizedBox(height: 14),
 
                         // Ride Type Section
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 22),
-                          child: const Text(
-                            'Ride Type',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15,
-                              color: Color(0xFF140D43),
-                            ),
-                          ),
-                        ),
+                        // Padding(
+                        //   padding: const EdgeInsets.symmetric(horizontal: 22),
+                        //   child: const Text(
+                        //     'Ride Type',
+                        //     style: TextStyle(
+                        //       fontWeight: FontWeight.w800,
+                        //       fontSize: 15,
+                        //       color: Color(0xFF140D43),
+                        //     ),
+                        //   ),
+                        // ),
 
-                        const SizedBox(height: 8),
+                        // const SizedBox(height: 8),
 
-                        // Ride Type Pills (Normal / Premium)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Row(
-                            children: [
-                              // Normal Pill
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => bloc.add(
-                                    const CarpoolOfferRideTypeChanged(
-                                      CarpoolRideType.normal,
-                                    ),
-                                  ),
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Container(
-                                    height: 46,
-                                    decoration: BoxDecoration(
-                                      gradient:
-                                          s.rideType == CarpoolRideType.normal
-                                          ? const LinearGradient(
-                                              colors: [
-                                                Color(0xFF6F35FF),
-                                                Color(0xFF3815D8),
-                                              ],
-                                            )
-                                          : null,
-                                      color:
-                                          s.rideType == CarpoolRideType.normal
-                                          ? null
-                                          : const Color(0xFFEDE8FF),
-                                      borderRadius: BorderRadius.circular(23),
-                                      boxShadow:
-                                          s.rideType == CarpoolRideType.normal
-                                          ? [
-                                              BoxShadow(
-                                                color: const Color(
-                                                  0xFF4C1CDD,
-                                                ).withOpacity(0.35),
-                                                blurRadius: 10,
-                                                offset: const Offset(0, 4),
-                                              ),
-                                            ]
-                                          : null,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'Normal',
-                                      style: TextStyle(
-                                        color:
-                                            s.rideType == CarpoolRideType.normal
-                                            ? Colors.white
-                                            : const Color(0xFF140D43),
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                        // // Ride Type Pills (Normal / Premium)
+                        // Padding(
+                        //   padding: const EdgeInsets.symmetric(horizontal: 20),
+                        //   child: Row(
+                        //     children: [
+                        //       // Normal Pill
+                        //       Expanded(
+                        //         child: GestureDetector(
+                        //           onTap: () => bloc.add(
+                        //             const CarpoolOfferRideTypeChanged(
+                        //               CarpoolRideType.normal,
+                        //             ),
+                        //           ),
+                        //           behavior: HitTestBehavior.opaque,
+                        //           child: Container(
+                        //             height: 46,
+                        //             decoration: BoxDecoration(
+                        //               gradient:
+                        //                   s.rideType == CarpoolRideType.normal
+                        //                   ? const LinearGradient(
+                        //                       colors: [
+                        //                         Color(0xFF6F35FF),
+                        //                         Color(0xFF3815D8),
+                        //                       ],
+                        //                     )
+                        //                   : null,
+                        //               color:
+                        //                   s.rideType == CarpoolRideType.normal
+                        //                   ? null
+                        //                   : const Color(0xFFEDE8FF),
+                        //               borderRadius: BorderRadius.circular(23),
+                        //               boxShadow:
+                        //                   s.rideType == CarpoolRideType.normal
+                        //                   ? [
+                        //                       BoxShadow(
+                        //                         color: const Color(
+                        //                           0xFF4C1CDD,
+                        //                         ).withOpacity(0.35),
+                        //                         blurRadius: 10,
+                        //                         offset: const Offset(0, 4),
+                        //                       ),
+                        //                     ]
+                        //                   : null,
+                        //             ),
+                        //             alignment: Alignment.center,
+                        //             child: Text(
+                        //               'Normal',
+                        //               style: TextStyle(
+                        //                 color:
+                        //                     s.rideType == CarpoolRideType.normal
+                        //                     ? Colors.white
+                        //                     : const Color(0xFF140D43),
+                        //                 fontWeight: FontWeight.w700,
+                        //                 fontSize: 15,
+                        //               ),
+                        //             ),
+                        //           ),
+                        //         ),
+                        //       ),
 
-                              const SizedBox(width: 14),
+                        //       const SizedBox(width: 14),
 
-                              // Premium Pill
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => bloc.add(
-                                    const CarpoolOfferRideTypeChanged(
-                                      CarpoolRideType.premium,
-                                    ),
-                                  ),
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Container(
-                                    height: 46,
-                                    decoration: BoxDecoration(
-                                      gradient:
-                                          s.rideType == CarpoolRideType.premium
-                                          ? const LinearGradient(
-                                              colors: [
-                                                Color(0xFF6F35FF),
-                                                Color(0xFF3815D8),
-                                              ],
-                                            )
-                                          : null,
-                                      color:
-                                          s.rideType == CarpoolRideType.premium
-                                          ? null
-                                          : const Color(0xFFEDE8FF),
-                                      borderRadius: BorderRadius.circular(23),
-                                      boxShadow:
-                                          s.rideType == CarpoolRideType.premium
-                                          ? [
-                                              BoxShadow(
-                                                color: const Color(
-                                                  0xFF4C1CDD,
-                                                ).withOpacity(0.35),
-                                                blurRadius: 10,
-                                                offset: const Offset(0, 4),
-                                              ),
-                                            ]
-                                          : null,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'Premium',
-                                      style: TextStyle(
-                                        color:
-                                            s.rideType ==
-                                                CarpoolRideType.premium
-                                            ? Colors.white
-                                            : const Color(0xFF140D43),
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
+                        //       // Premium Pill
+                        //       Expanded(
+                        //         child: GestureDetector(
+                        //           onTap: () => bloc.add(
+                        //             const CarpoolOfferRideTypeChanged(
+                        //               CarpoolRideType.premium,
+                        //             ),
+                        //           ),
+                        //           behavior: HitTestBehavior.opaque,
+                        //           child: Container(
+                        //             height: 46,
+                        //             decoration: BoxDecoration(
+                        //               gradient:
+                        //                   s.rideType == CarpoolRideType.premium
+                        //                   ? const LinearGradient(
+                        //                       colors: [
+                        //                         Color(0xFF6F35FF),
+                        //                         Color(0xFF3815D8),
+                        //                       ],
+                        //                     )
+                        //                   : null,
+                        //               color:
+                        //                   s.rideType == CarpoolRideType.premium
+                        //                   ? null
+                        //                   : const Color(0xFFEDE8FF),
+                        //               borderRadius: BorderRadius.circular(23),
+                        //               boxShadow:
+                        //                   s.rideType == CarpoolRideType.premium
+                        //                   ? [
+                        //                       BoxShadow(
+                        //                         color: const Color(
+                        //                           0xFF4C1CDD,
+                        //                         ).withOpacity(0.35),
+                        //                         blurRadius: 10,
+                        //                         offset: const Offset(0, 4),
+                        //                       ),
+                        //                     ]
+                        //                   : null,
+                        //             ),
+                        //             alignment: Alignment.center,
+                        //             child: Text(
+                        //               'Premium',
+                        //               style: TextStyle(
+                        //                 color:
+                        //                     s.rideType ==
+                        //                         CarpoolRideType.premium
+                        //                     ? Colors.white
+                        //                     : const Color(0xFF140D43),
+                        //                 fontWeight: FontWeight.w700,
+                        //                 fontSize: 15,
+                        //               ),
+                        //             ),
+                        //           ),
+                        //         ),
+                        //       ),
+                        //     ],
+                        //   ),
+                        // ),
                         const SizedBox(height: 22),
 
                         // Post Ride Button

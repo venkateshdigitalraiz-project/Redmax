@@ -9,7 +9,10 @@ import '../../data/repositories/carpool_repository_impl.dart';
 import '../../domain/usecases/carpool_usecases.dart';
 import '../bloc/carpool_find_ride_bloc.dart';
 import '../bloc/carpool_home_bloc.dart';
+import '../bloc/carpool_nav_cubit.dart';
+import '../bloc/carpool_offer_ride_bloc.dart';
 import 'carpool_find_ride_page.dart';
+import 'carpool_offer_ride_page.dart';
 import 'carpool_publish_ride_page.dart';
 
 // Carpool Home Page – exact 1:1 match with the target UI design:
@@ -84,6 +87,35 @@ class _CarpoolHomeView extends StatelessWidget {
     CarpoolPublishRidePage.show(context);
   }
 
+  void _openOfferRide(BuildContext context) {
+    CarpoolHomeBloc? homeBloc;
+    CarpoolNavCubit? navCubit;
+    CarpoolOfferRideBloc? offerBloc;
+
+    try {
+      homeBloc = context.read<CarpoolHomeBloc>();
+    } catch (_) {}
+    try {
+      navCubit = context.read<CarpoolNavCubit>();
+    } catch (_) {}
+    try {
+      offerBloc = context.read<CarpoolOfferRideBloc>();
+    } catch (_) {}
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            if (homeBloc != null) BlocProvider.value(value: homeBloc),
+            if (navCubit != null) BlocProvider.value(value: navCubit),
+            if (offerBloc != null) BlocProvider.value(value: offerBloc),
+          ],
+          child: const CarpoolOfferRidePage(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -132,11 +164,7 @@ class _CarpoolHomeView extends StatelessWidget {
                     return const LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black,
-                        Colors.black,
-                        Colors.transparent,
-                      ],
+                      colors: [Colors.black, Colors.black, Colors.transparent],
                       stops: [0.0, 0.74, 1.0],
                     ).createShader(rect);
                   },
@@ -145,9 +173,8 @@ class _CarpoolHomeView extends StatelessWidget {
                     'assets/images/carpool_home_bg.jpg',
                     fit: BoxFit.cover,
                     alignment: Alignment.centerRight,
-                    errorBuilder: (_, __, ___) => const CustomPaint(
-                      painter: _CitySkylineArtPainter(),
-                    ),
+                    errorBuilder: (_, __, ___) =>
+                        const CustomPaint(painter: _CitySkylineArtPainter()),
                   ),
                 ),
               ),
@@ -303,16 +330,10 @@ class _CarpoolHomeView extends StatelessWidget {
 
                           const SizedBox(width: 14),
 
-                          // Courier Card (Golden Orange with 3D isometric parcel box)
+                          // Offer Ride Card (Golden Orange with 3D Searching Glass)
                           Expanded(
                             child: _CourierActionCard(
-                              onTap: () =>
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Courier is coming soon'),
-                                      duration: Duration(seconds: 1),
-                                    ),
-                                  ),
+                              onTap: () => _openOfferRide(context),
                             ),
                           ),
                         ],
@@ -526,7 +547,7 @@ class _CarpoolActionCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Share Ride',
+                  'Publish Ride',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.95),
                     fontSize: 13,
@@ -589,7 +610,7 @@ class _CourierActionCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Courier',
+              'Offer Ride',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white,
@@ -604,7 +625,7 @@ class _CourierActionCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Send Package',
+                  'Offer a Ride',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.95),
                     fontSize: 13,
@@ -834,7 +855,7 @@ class _FrontCarArtPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// 3D Isometric Cardboard Parcel Box for Courier Card
+/// 3D Isometric Searching Magnifying Glass for Carpool Search Ride Card
 class _IsometricParcelBoxPainter extends CustomPainter {
   const _IsometricParcelBoxPainter();
 
@@ -843,112 +864,132 @@ class _IsometricParcelBoxPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // Drop shadow under the box
+    // 1. Soft blurred drop shadow underneath the magnifying glass
     final shadowPaint = Paint()
-      ..color = const Color(0xFFBF360C).withOpacity(0.35)
+      ..color = const Color(0xFFBF360C).withOpacity(0.38)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+
+    // Lens shadow
     canvas.drawOval(
       Rect.fromCenter(
-        center: Offset(w * 0.50, h * 0.88),
-        width: w * 0.75,
-        height: h * 0.20,
+        center: Offset(w * 0.44, h * 0.46),
+        width: w * 0.54,
+        height: h * 0.52,
       ),
       shadowPaint,
     );
 
-    final topPaint = Paint()
-      ..color = const Color(0xFFFFE082)
-      ..style = PaintingStyle.fill;
+    // Handle shadow
+    final handleShadowPaint = Paint()
+      ..color = const Color(0xFFBF360C).withOpacity(0.30)
+      ..strokeWidth = 7.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawLine(
+      Offset(w * 0.62, h * 0.62),
+      Offset(w * 0.88, h * 0.88),
+      handleShadowPaint,
+    );
 
-    final leftPaint = Paint()
-      ..color = const Color(0xFFFFB74D)
-      ..style = PaintingStyle.fill;
-
-    final rightPaint = Paint()
-      ..color = const Color(0xFFFFA726)
-      ..style = PaintingStyle.fill;
-
-    final tapePaint = Paint()
-      ..color = const Color(0xFF6D4C41)
-      ..style = PaintingStyle.fill;
-
-    final pTop = Offset(w * 0.50, h * 0.10);
-    final pLeft = Offset(w * 0.14, h * 0.28);
-    final pRight = Offset(w * 0.86, h * 0.28);
-    final pCenter = Offset(w * 0.50, h * 0.46);
-    final pBottomLeft = Offset(w * 0.14, h * 0.72);
-    final pBottomCenter = Offset(w * 0.50, h * 0.90);
-    final pBottomRight = Offset(w * 0.86, h * 0.72);
-
-    // 1. Top face (Rhombus)
-    final topPath = Path()
-      ..moveTo(pTop.dx, pTop.dy)
-      ..lineTo(pRight.dx, pRight.dy)
-      ..lineTo(pCenter.dx, pCenter.dy)
-      ..lineTo(pLeft.dx, pLeft.dy)
-      ..close();
-    canvas.drawPath(topPath, topPaint);
-
-    // Top Tape Strip
-    final topTapePath = Path()
-      ..moveTo(w * 0.45, h * 0.13)
-      ..lineTo(w * 0.55, h * 0.18)
-      ..lineTo(w * 0.55, h * 0.43)
-      ..lineTo(w * 0.45, h * 0.38)
-      ..close();
-    canvas.drawPath(topTapePath, tapePaint);
-
-    // 2. Front-Left face
-    final leftPath = Path()
-      ..moveTo(pLeft.dx, pLeft.dy)
-      ..lineTo(pCenter.dx, pCenter.dy)
-      ..lineTo(pBottomCenter.dx, pBottomCenter.dy)
-      ..lineTo(pBottomLeft.dx, pBottomLeft.dy)
-      ..close();
-    canvas.drawPath(leftPath, leftPaint);
-
-    // Left face tape extension
-    final leftTape = Path()
-      ..moveTo(w * 0.46, h * 0.44)
-      ..lineTo(w * 0.50, h * 0.46)
-      ..lineTo(w * 0.50, h * 0.90)
-      ..lineTo(w * 0.46, h * 0.88)
-      ..close();
-    canvas.drawPath(leftTape, tapePaint);
-
-    // 3. Front-Right face
-    final rightPath = Path()
-      ..moveTo(pCenter.dx, pCenter.dy)
-      ..lineTo(pRight.dx, pRight.dy)
-      ..lineTo(pBottomRight.dx, pBottomRight.dy)
-      ..lineTo(pBottomCenter.dx, pBottomCenter.dy)
-      ..close();
-    canvas.drawPath(rightPath, rightPaint);
-
-    // Cute white shipping label on front-left face
-    final labelPaint = Paint()..color = Colors.white;
-    final labelPath = Path()
-      ..moveTo(w * 0.24, h * 0.44)
-      ..lineTo(w * 0.38, h * 0.51)
-      ..lineTo(w * 0.38, h * 0.63)
-      ..lineTo(w * 0.24, h * 0.56)
-      ..close();
-    canvas.drawPath(labelPath, labelPaint);
-
-    // Small barcode lines on label
-    final barcodePaint = Paint()
-      ..color = const Color(0xFF6D4C41).withOpacity(0.6)
-      ..strokeWidth = 1.2
+    // 2. Angled 3D Handle
+    // Handle rear 3D depth rim
+    final handleDepthPaint = Paint()
+      ..color = const Color(0xFFE65100)
+      ..strokeWidth = 7.5
+      ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
     canvas.drawLine(
-      Offset(w * 0.27, h * 0.48),
-      Offset(w * 0.35, h * 0.52),
-      barcodePaint,
+      Offset(w * 0.59, h * 0.59),
+      Offset(w * 0.86, h * 0.86),
+      handleDepthPaint,
     );
+
+    // Main glossy white handle
+    final handlePaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 5.8
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
     canvas.drawLine(
-      Offset(w * 0.27, h * 0.52),
-      Offset(w * 0.35, h * 0.56),
-      barcodePaint,
+      Offset(w * 0.58, h * 0.58),
+      Offset(w * 0.85, h * 0.85),
+      handlePaint,
+    );
+
+    // Golden metallic connector collar between rim and handle
+    final collarPaint = Paint()
+      ..color = const Color(0xFFFFD54F)
+      ..strokeWidth = 7.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(
+      Offset(w * 0.54, h * 0.54),
+      Offset(w * 0.61, h * 0.61),
+      collarPaint,
+    );
+
+    // 3. Magnifying Glass Lens
+    final lensCenter = Offset(w * 0.38, h * 0.38);
+    final lensRadius = w * 0.26;
+
+    // Translucent glass fill with subtle light blue/white glow
+    final glassPaint = Paint()
+      ..color = Colors.white.withOpacity(0.24)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(lensCenter, lensRadius, glassPaint);
+
+    final glassFrostPaint = Paint()
+      ..color = const Color(0xFFE0F7FA).withOpacity(0.32)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(lensCenter, lensRadius - 1.5, glassFrostPaint);
+
+    // Outer 3D bevel / rim shadow
+    final rimBevelPaint = Paint()
+      ..color = const Color(0xFFE65100).withOpacity(0.50)
+      ..strokeWidth = 5.0
+      ..style = PaintingStyle.stroke;
+    canvas.drawCircle(
+      Offset(lensCenter.dx + 1.2, lensCenter.dy + 1.2),
+      lensRadius,
+      rimBevelPaint,
+    );
+
+    // Main crisp white outer circular rim
+    final rimPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 4.4
+      ..style = PaintingStyle.stroke;
+    canvas.drawCircle(lensCenter, lensRadius, rimPaint);
+
+    // Inner rim accent ring
+    final innerRimPaint = Paint()
+      ..color = const Color(0xFFFFD54F).withOpacity(0.85)
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    canvas.drawCircle(lensCenter, lensRadius - 2.4, innerRimPaint);
+
+    // 4. Glossy Lens Glare / Reflection (curved top-left arc)
+    final shinePaint = Paint()
+      ..color = Colors.white.withOpacity(0.88)
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final shineRect = Rect.fromCircle(
+      center: lensCenter,
+      radius: lensRadius - 4.5,
+    );
+    canvas.drawArc(shineRect, -2.6, 1.5, false, shinePaint);
+
+    // Secondary soft reflection sparkle dot
+    final dotPaint = Paint()
+      ..color = Colors.white.withOpacity(0.75)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(
+      Offset(lensCenter.dx + 4.5, lensCenter.dy + 4.5),
+      1.6,
+      dotPaint,
     );
   }
 

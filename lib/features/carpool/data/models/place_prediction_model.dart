@@ -59,9 +59,28 @@ class PlacePredictionModel extends PlacePredictionEntity {
       }
     }
 
-    // Resolve lat/lng from json or fallback to our AP/TS coordinate database
-    double? lat = (json['lat'] ?? json['latitude']) as double?;
-    double? lng = (json['lng'] ?? json['longitude']) as double?;
+    // Resolve lat/lng from json or fallback to dynamic coordinate cache
+    double? lat;
+    if (json['lat'] is num) {
+      lat = (json['lat'] as num).toDouble();
+    } else if (json['latitude'] is num) {
+      lat = (json['latitude'] as num).toDouble();
+    } else if (json['lat'] != null) {
+      lat = double.tryParse(json['lat'].toString());
+    }
+
+    double? lng;
+    if (json['lng'] is num) {
+      lng = (json['lng'] as num).toDouble();
+    } else if (json['longitude'] is num) {
+      lng = (json['longitude'] as num).toDouble();
+    } else if (json['lon'] is num) {
+      lng = (json['lon'] as num).toDouble();
+    } else if (json['lng'] != null) {
+      lng = double.tryParse(json['lng'].toString());
+    } else if (json['lon'] != null) {
+      lng = double.tryParse(json['lon'].toString());
+    }
 
     if (lat == null || lng == null) {
       final geo = CarpoolDistanceCalculator.findGeo(mainText);

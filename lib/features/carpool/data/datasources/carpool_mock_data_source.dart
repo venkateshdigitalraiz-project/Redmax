@@ -222,7 +222,8 @@ class CarpoolMockDataSource implements CarpoolRemoteDataSource {
     await _latency();
     final dist = CarpoolDistanceCalculator.calculateDistanceKm(p.from, p.to);
     final totalFare = dist * 10;
-    final pricePerSeat = (totalFare / (p.seats > 0 ? p.seats : 1)).round();
+    final pricePerSeat = p.pricePerSeat ??
+        (totalFare / (p.seats > 0 ? p.seats : 1)).round();
 
     final ride = CarpoolRideModel(
       id: 'r${_idCounter++}',

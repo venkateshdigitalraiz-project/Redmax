@@ -563,13 +563,13 @@ class CarpoolBottomNav extends StatelessWidget {
     super.key,
     required this.currentIndex,
     required this.onTap,
-    required this.onCenterTap,
+    this.onCenterTap,
     this.unreadMessages = 0,
   });
 
   final int currentIndex;
   final ValueChanged<int> onTap;
-  final VoidCallback onCenterTap;
+  final VoidCallback? onCenterTap;
   final int unreadMessages;
 
   @override
@@ -631,48 +631,58 @@ class CarpoolBottomNav extends StatelessWidget {
             children: [
               item(0, Icons.home_rounded, 'Home'),
               item(1, Icons.directions_car_rounded, 'Your Rides'),
-              Expanded(
-                child: Transform.translate(
-                  offset: const Offset(0, -10),
-                  child: GestureDetector(
-                    onTap: onCenterTap,
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF5D24F7),
-                            Color(0xFF300AB3),
+              if (onCenterTap != null) ...[
+                Expanded(
+                  child: Transform.translate(
+                    offset: const Offset(0, -10),
+                    child: GestureDetector(
+                      onTap: onCenterTap,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF5D24F7),
+                              Color(0xFF300AB3),
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF4C1CDD).withOpacity(.38),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
                           ],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF4C1CDD).withOpacity(.38),
-                            blurRadius: 14,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.add_rounded,
-                        color: Colors.white,
-                        size: 30,
+                        child: const Icon(
+                          Icons.add_rounded,
+                          color: Colors.white,
+                          size: 30,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              item(
-                3,
-                Icons.chat_bubble_outline_rounded,
-                'Messages',
-                badge: unreadMessages,
-              ),
-              item(4, Icons.person_rounded, 'Profile'),
+                item(
+                  3,
+                  Icons.chat_bubble_outline_rounded,
+                  'Messages',
+                  badge: unreadMessages,
+                ),
+                item(4, Icons.person_rounded, 'Profile'),
+              ] else ...[
+                item(
+                  2,
+                  Icons.chat_bubble_outline_rounded,
+                  'Messages',
+                  badge: unreadMessages,
+                ),
+                item(3, Icons.person_rounded, 'Profile'),
+              ],
             ],
           ),
         ),
