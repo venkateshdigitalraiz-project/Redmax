@@ -7,6 +7,7 @@ class UserProfile extends Equatable {
   final String email;
   final String phoneNumber;
   final String authProvider; // 'phone', 'facebook', 'email', 'google', 'guest'
+  final String role; // 'user', 'admin', etc.
   final bool optOutMarketing;
   final List<String> holidayWith; // ['couple', 'friends', 'alone', 'family', 'pet']
   final String? homeExchangeInterest; // 'already_done', 'interested', 'no', 'dont_know'
@@ -20,6 +21,7 @@ class UserProfile extends Equatable {
     required this.email,
     this.phoneNumber = '',
     this.authProvider = 'phone',
+    this.role = 'user',
     this.optOutMarketing = false,
     this.holidayWith = const [],
     this.homeExchangeInterest,
@@ -36,6 +38,7 @@ class UserProfile extends Equatable {
     String? email,
     String? phoneNumber,
     String? authProvider,
+    String? role,
     bool? optOutMarketing,
     List<String>? holidayWith,
     String? homeExchangeInterest,
@@ -49,6 +52,7 @@ class UserProfile extends Equatable {
       email: email ?? this.email,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       authProvider: authProvider ?? this.authProvider,
+      role: role ?? this.role,
       optOutMarketing: optOutMarketing ?? this.optOutMarketing,
       holidayWith: holidayWith ?? this.holidayWith,
       homeExchangeInterest: homeExchangeInterest ?? this.homeExchangeInterest,
@@ -65,6 +69,7 @@ class UserProfile extends Equatable {
       'email': email,
       'phoneNumber': phoneNumber,
       'authProvider': authProvider,
+      'role': role,
       'optOutMarketing': optOutMarketing,
       'holidayWith': holidayWith,
       'homeExchangeInterest': homeExchangeInterest,
@@ -81,6 +86,7 @@ class UserProfile extends Equatable {
       email: json['email'] as String? ?? '',
       phoneNumber: json['phoneNumber'] as String? ?? '',
       authProvider: json['authProvider'] as String? ?? 'phone',
+      role: json['role'] as String? ?? 'user',
       optOutMarketing: json['optOutMarketing'] as bool? ?? false,
       holidayWith: (json['holidayWith'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -100,6 +106,7 @@ class UserProfile extends Equatable {
         email,
         phoneNumber,
         authProvider,
+        role,
         optOutMarketing,
         holidayWith,
         homeExchangeInterest,

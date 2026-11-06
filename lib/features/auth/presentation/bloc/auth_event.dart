@@ -9,9 +9,21 @@ abstract class AuthEvent extends Equatable {
 
 class CheckAuthStatusEvent extends AuthEvent {}
 
+class FetchUserProfileEvent extends AuthEvent {
+  const FetchUserProfileEvent();
+}
+
 class SendPhoneOtpEvent extends AuthEvent {
   final String phoneNumber;
   const SendPhoneOtpEvent(this.phoneNumber);
+
+  @override
+  List<Object?> get props => [phoneNumber];
+}
+
+class ResendPhoneOtpEvent extends AuthEvent {
+  final String phoneNumber;
+  const ResendPhoneOtpEvent(this.phoneNumber);
 
   @override
   List<Object?> get props => [phoneNumber];
@@ -47,6 +59,25 @@ class RegisterWithEmailEvent extends AuthEvent {
 
   @override
   List<Object?> get props => [email, firstName, lastName, optOutMarketing];
+}
+
+class RegisterUserEvent extends AuthEvent {
+  final String name;
+  final String email;
+  final String phone;
+  final String password;
+  final String role;
+
+  const RegisterUserEvent({
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.password,
+    this.role = 'user',
+  });
+
+  @override
+  List<Object?> get props => [name, email, phone, password, role];
 }
 
 class SaveProfileNameEvent extends AuthEvent {

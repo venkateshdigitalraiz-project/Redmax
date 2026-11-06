@@ -75,14 +75,17 @@ class _FourDigitOtpInputState extends State<FourDigitOtpInput> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (int i = 0; i < 4; i++) ...[
-          _buildDigitBox(i),
-          if (i < 3) const SizedBox(width: 14),
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (int i = 0; i < 4; i++) ...[
+            _buildDigitBox(i),
+            if (i < 3) const SizedBox(width: 14),
+          ],
         ],
-      ],
+      ),
     );
   }
 

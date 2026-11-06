@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_event.dart';
 import '../bloc/carpool_nav_cubit.dart';
 import '../bloc/carpool_profile_bloc.dart';
 import 'carpool_settings_page.dart';
@@ -72,10 +74,7 @@ class CarpoolProfilePage extends StatelessWidget {
     );
     if (ok == true && context.mounted) {
       context.read<CarpoolNavCubit>().select(0);
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const CarpoolSplashPage()),
-        (_) => false,
-      );
+      context.read<AuthBloc>().add(LogoutEvent());
     }
   }
 

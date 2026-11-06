@@ -8,6 +8,7 @@ enum AuthStatus {
   loading,
   error,
   otpVerified,
+  registered,
 }
 
 class AuthState extends Equatable {
@@ -32,6 +33,7 @@ class AuthState extends Equatable {
   AuthState copyWith({
     AuthStatus? status,
     UserProfile? user,
+    bool clearUser = false,
     String? errorMessage,
     String? successMessage,
     bool? isFirstTime,
@@ -40,7 +42,7 @@ class AuthState extends Equatable {
   }) {
     return AuthState(
       status: status ?? this.status,
-      user: user ?? this.user,
+      user: clearUser ? null : (user ?? this.user),
       errorMessage: errorMessage,
       successMessage: successMessage,
       isFirstTime: isFirstTime ?? this.isFirstTime,

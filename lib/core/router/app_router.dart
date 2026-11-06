@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../storage/auth_local_storage.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
+import '../../features/auth/presentation/pages/auth_register_page.dart';
 import '../../features/auth/presentation/pages/auth_welcome_page.dart';
 import '../../features/auth/presentation/pages/name_input_page.dart';
 import '../../features/carpool/presentation/pages/carpool_shell_page.dart';
@@ -14,6 +16,7 @@ import '../../features/party_booking/presentation/pages/party_shell_page.dart';
 class AppRoutes {
   static const String splash = '/splash';
   static const String welcome = '/welcome';
+  static const String register = '/register';
   static const String nameInput = '/name-input';
   static const String carpool = '/carpool';
   static const String party = '/party';
@@ -46,7 +49,7 @@ class AppRouter {
   /// Creates and configures the GoRouter instance reactive to AuthBloc
   static GoRouter createRouter(AuthBloc authBloc) {
     final bool isInitiallyAuthenticated =
-        authBloc.state.status == AuthStatus.authenticated ||
+        authBloc.state.status == AuthStatus.authenticated &&
         authBloc.state.user != null;
 
     return GoRouter(
@@ -57,12 +60,14 @@ class AppRouter {
       redirect: (BuildContext context, GoRouterState state) {
         final authState = authBloc.state;
         final bool isAuthenticated =
-            authState.status == AuthStatus.authenticated ||
-            authState.user != null;
+            (authState.status == AuthStatus.authenticated &&
+                authState.user != null) ||
+            AuthLocalStorage().isLoggedIn();
         final String location = state.matchedLocation;
 
-        final bool isAuthRoute =
-            location == AppRoutes.welcome || location == AppRoutes.nameInput;
+        final bool isAuthRoute = location == AppRoutes.welcome ||
+            location == AppRoutes.register ||
+            location == AppRoutes.nameInput;
 
         // If not authenticated, ensure user stays on auth pages
         if (!isAuthenticated) {
@@ -84,6 +89,11 @@ class AppRouter {
           path: AppRoutes.welcome,
           name: 'welcome',
           builder: (context, state) => const AuthWelcomePage(),
+        ),
+        GoRoute(
+          path: AppRoutes.register,
+          name: 'register',
+          builder: (context, state) => const AuthRegisterPage(),
         ),
         GoRoute(
           path: AppRoutes.nameInput,

@@ -3,10 +3,13 @@ import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/continue_as_guest_usecase.dart';
 import '../../domain/usecases/get_current_user_usecase.dart';
+import '../../domain/usecases/get_user_profile_usecase.dart';
 import '../../domain/usecases/login_with_facebook_usecase.dart';
 import '../../domain/usecases/login_with_google_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
+import '../../domain/usecases/register_user_usecase.dart';
 import '../../domain/usecases/register_with_email_usecase.dart';
+import '../../domain/usecases/resend_phone_otp_usecase.dart';
 import '../../domain/usecases/send_phone_otp_usecase.dart';
 import '../../domain/usecases/update_profile_name_usecase.dart';
 import '../../domain/usecases/update_survey_preferences_usecase.dart';
@@ -17,11 +20,14 @@ import 'auth_state.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;
   final GetCurrentUserUseCase getCurrentUserUseCase;
+  final GetUserProfileUseCase getUserProfileUseCase;
   final SendPhoneOtpUseCase sendPhoneOtpUseCase;
+  final ResendPhoneOtpUseCase resendPhoneOtpUseCase;
   final VerifyPhoneOtpUseCase verifyPhoneOtpUseCase;
   final LoginWithFacebookUseCase loginWithFacebookUseCase;
   final LoginWithGoogleUseCase loginWithGoogleUseCase;
   final RegisterWithEmailUseCase registerWithEmailUseCase;
+  final RegisterUserUseCase registerUserUseCase;
   final ContinueAsGuestUseCase continueAsGuestUseCase;
   final UpdateProfileNameUseCase updateProfileNameUseCase;
   final UpdateSurveyPreferencesUseCase updateSurveyPreferencesUseCase;
@@ -30,11 +36,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({
     required this.authRepository,
     GetCurrentUserUseCase? getCurrentUserUseCase,
+    GetUserProfileUseCase? getUserProfileUseCase,
     SendPhoneOtpUseCase? sendPhoneOtpUseCase,
+    ResendPhoneOtpUseCase? resendPhoneOtpUseCase,
     VerifyPhoneOtpUseCase? verifyPhoneOtpUseCase,
     LoginWithFacebookUseCase? loginWithFacebookUseCase,
     LoginWithGoogleUseCase? loginWithGoogleUseCase,
     RegisterWithEmailUseCase? registerWithEmailUseCase,
+    RegisterUserUseCase? registerUserUseCase,
     ContinueAsGuestUseCase? continueAsGuestUseCase,
     UpdateProfileNameUseCase? updateProfileNameUseCase,
     UpdateSurveyPreferencesUseCase? updateSurveyPreferencesUseCase,
@@ -42,8 +51,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     UserProfile? initialUser,
   })  : getCurrentUserUseCase =
             getCurrentUserUseCase ?? GetCurrentUserUseCase(authRepository),
+        getUserProfileUseCase =
+            getUserProfileUseCase ?? GetUserProfileUseCase(authRepository),
         sendPhoneOtpUseCase =
             sendPhoneOtpUseCase ?? SendPhoneOtpUseCase(authRepository),
+        resendPhoneOtpUseCase =
+            resendPhoneOtpUseCase ?? ResendPhoneOtpUseCase(authRepository),
         verifyPhoneOtpUseCase =
             verifyPhoneOtpUseCase ?? VerifyPhoneOtpUseCase(authRepository),
         loginWithFacebookUseCase =
@@ -52,6 +65,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             loginWithGoogleUseCase ?? LoginWithGoogleUseCase(authRepository),
         registerWithEmailUseCase =
             registerWithEmailUseCase ?? RegisterWithEmailUseCase(authRepository),
+        registerUserUseCase =
+            registerUserUseCase ?? RegisterUserUseCase(authRepository),
         continueAsGuestUseCase =
             continueAsGuestUseCase ?? ContinueAsGuestUseCase(authRepository),
         updateProfileNameUseCase =
@@ -67,15 +82,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
                   isFirstTime: false,
                   phoneNumber: initialUser.phoneNumber,
                 )
-              : const AuthState(),
+              : const AuthState(
+                  status: AuthStatus.unauthenticated,
+                  user: null,
+                  isFirstTime: true,
+                ),
         ) {
     on<CheckAuthStatusEvent>(_onCheckAuthStatus);
+    on<FetchUserProfileEvent>(_onFetchUserProfile);
     on<SendPhoneOtpEvent>(_onSendPhoneOtp);
+    on<ResendPhoneOtpEvent>(_onResendPhoneOtp);
     on<EditPhoneNumberEvent>(_onEditPhoneNumber);
     on<VerifyPhoneOtpEvent>(_onVerifyPhoneOtp);
     on<LoginWithFacebookEvent>(_onLoginWithFacebook);
     on<LoginWithGoogleEvent>(_onLoginWithGoogle);
     on<RegisterWithEmailEvent>(_onRegisterWithEmail);
+    on<RegisterUserEvent>(_onRegisterUser);
     on<ContinueAsGuestEvent>(_onContinueAsGuest);
     on<SaveHolidayPreferencesEvent>(_onSaveHolidayPreferences);
     on<SaveHomeExchangePreferenceEvent>(_onSaveHomeExchangePreference);
@@ -94,13 +116,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         user: user,
         isFirstTime: false,
       ));
-    } else if (state.status == AuthStatus.authenticated && state.user != null) {
-      // Retain existing authenticated state
     } else {
-      emit(state.copyWith(
+      emit(const AuthState(
         status: AuthStatus.unauthenticated,
+        user: null,
         isFirstTime: true,
       ));
+    }
+  }
+
+  Future<void> _onFetchUserProfile(
+    FetchUserProfileEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      final user = await getUserProfileUseCase();
+      emit(state.copyWith(
+        status: AuthStatus.authenticated,
+        user: user,
+        isFirstTime: false,
+      ));
+    } catch (_) {
+      // Retain current authenticated state
     }
   }
 
@@ -108,19 +145,53 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     SendPhoneOtpEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(state.copyWith(status: AuthStatus.loading));
+    emit(state.copyWith(
+      status: AuthStatus.loading,
+      errorMessage: null,
+      successMessage: null,
+    ));
     try {
       await sendPhoneOtpUseCase(event.phoneNumber);
       emit(state.copyWith(
         status: AuthStatus.unauthenticated,
         isOtpSent: true,
         phoneNumber: event.phoneNumber,
-        successMessage: 'OTP sent successfully to ${event.phoneNumber}',
+        errorMessage: null,
+        successMessage: 'OTP sent successfully!',
       ));
     } catch (e) {
+      final message = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       emit(state.copyWith(
         status: AuthStatus.error,
-        errorMessage: 'Failed to send OTP: $e',
+        isOtpSent: false,
+        errorMessage: message,
+      ));
+    }
+  }
+
+  Future<void> _onResendPhoneOtp(
+    ResendPhoneOtpEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(state.copyWith(
+      status: AuthStatus.loading,
+      errorMessage: null,
+      successMessage: null,
+    ));
+    try {
+      await resendPhoneOtpUseCase(event.phoneNumber);
+      emit(state.copyWith(
+        status: AuthStatus.unauthenticated,
+        isOtpSent: true,
+        phoneNumber: event.phoneNumber,
+        errorMessage: null,
+        successMessage: 'OTP resent successfully!',
+      ));
+    } catch (e) {
+      final message = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      emit(state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: message,
       ));
     }
   }
@@ -140,7 +211,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     VerifyPhoneOtpEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(state.copyWith(status: AuthStatus.loading));
+    emit(state.copyWith(
+      status: AuthStatus.loading,
+      errorMessage: null,
+      successMessage: null,
+    ));
     try {
       final user = await verifyPhoneOtpUseCase(
         phoneNumber: event.phoneNumber,
@@ -152,12 +227,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         phoneNumber: event.phoneNumber,
         isFirstTime: false,
         isOtpSent: false,
-        successMessage: 'OTP verified successfully!',
+        successMessage: 'Welcome to Pathway!',
       ));
     } catch (e) {
+      final message = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       emit(state.copyWith(
         status: AuthStatus.error,
-        errorMessage: 'Invalid OTP: $e',
+        errorMessage: message,
       ));
     }
   }
@@ -251,6 +327,39 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
+  Future<void> _onRegisterUser(
+    RegisterUserEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(state.copyWith(
+      status: AuthStatus.loading,
+      errorMessage: null,
+      successMessage: null,
+    ));
+    try {
+      await registerUserUseCase(
+        name: event.name,
+        email: event.email,
+        phone: event.phone,
+        password: event.password,
+        role: event.role,
+      );
+      emit(state.copyWith(
+        status: AuthStatus.registered,
+        clearUser: true,
+        phoneNumber: event.phone.replaceAll(RegExp(r'^\+91'), '').trim(),
+        isFirstTime: false,
+        successMessage: 'Account created successfully! Please sign in.',
+      ));
+    } catch (e) {
+      final message = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      emit(state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: message,
+      ));
+    }
+  }
+
   Future<void> _onContinueAsGuest(
     ContinueAsGuestEvent event,
     Emitter<AuthState> emit,
@@ -290,10 +399,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     await logoutUseCase();
-    emit(state.copyWith(
+    emit(const AuthState(
       status: AuthStatus.unauthenticated,
       user: null,
-      isFirstTime: true,
+      isFirstTime: false,
       isOtpSent: false,
       phoneNumber: '',
     ));

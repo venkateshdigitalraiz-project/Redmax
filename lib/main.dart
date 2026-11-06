@@ -6,6 +6,7 @@ import 'core/router/app_router.dart';
 import 'core/storage/storedlocal.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/data/datasources/auth_local_datasource.dart';
+import 'features/auth/data/datasources/auth_remote_datasource.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/auth/domain/entities/user_profile.dart';
 import 'features/auth/domain/usecases/continue_as_guest_usecase.dart';
@@ -13,7 +14,9 @@ import 'features/auth/domain/usecases/get_current_user_usecase.dart';
 import 'features/auth/domain/usecases/login_with_facebook_usecase.dart';
 import 'features/auth/domain/usecases/login_with_google_usecase.dart';
 import 'features/auth/domain/usecases/logout_usecase.dart';
+import 'features/auth/domain/usecases/register_user_usecase.dart';
 import 'features/auth/domain/usecases/register_with_email_usecase.dart';
+import 'features/auth/domain/usecases/resend_phone_otp_usecase.dart';
 import 'features/auth/domain/usecases/send_phone_otp_usecase.dart';
 import 'features/auth/domain/usecases/update_profile_name_usecase.dart';
 import 'features/auth/domain/usecases/update_survey_preferences_usecase.dart';
@@ -65,8 +68,10 @@ class _PathwayAppState extends State<PathwayApp> {
     final authLocalDataSource = AuthLocalDataSourceImpl(
       storedLocal: storedLocal,
     );
+    final authRemoteDataSource = AuthRemoteDataSourceImpl();
     final authRepository = AuthRepositoryImpl(
       localDataSource: authLocalDataSource,
+      remoteDataSource: authRemoteDataSource,
     );
 
     _authBloc = widget.authBloc ??
@@ -74,10 +79,12 @@ class _PathwayAppState extends State<PathwayApp> {
           authRepository: authRepository,
           getCurrentUserUseCase: GetCurrentUserUseCase(authRepository),
           sendPhoneOtpUseCase: SendPhoneOtpUseCase(authRepository),
+          resendPhoneOtpUseCase: ResendPhoneOtpUseCase(authRepository),
           verifyPhoneOtpUseCase: VerifyPhoneOtpUseCase(authRepository),
           loginWithFacebookUseCase: LoginWithFacebookUseCase(authRepository),
           loginWithGoogleUseCase: LoginWithGoogleUseCase(authRepository),
           registerWithEmailUseCase: RegisterWithEmailUseCase(authRepository),
+          registerUserUseCase: RegisterUserUseCase(authRepository),
           continueAsGuestUseCase: ContinueAsGuestUseCase(authRepository),
           updateProfileNameUseCase: UpdateProfileNameUseCase(authRepository),
           updateSurveyPreferencesUseCase: UpdateSurveyPreferencesUseCase(

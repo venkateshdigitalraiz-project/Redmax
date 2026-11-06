@@ -1,11 +1,16 @@
 import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
+import '../datasources/auth_remote_datasource.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthLocalDataSource localDataSource;
+  final AuthRemoteDataSource remoteDataSource;
 
-  AuthRepositoryImpl({required this.localDataSource});
+  AuthRepositoryImpl({
+    required this.localDataSource,
+    AuthRemoteDataSource? remoteDataSource,
+  }) : remoteDataSource = remoteDataSource ?? AuthRemoteDataSourceImpl();
 
   @override
   Future<UserProfile?> getCurrentUser() async {
@@ -13,9 +18,33 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<UserProfile> getUserProfile() async {
+    final token = localDataSource.getAccessToken();
+    if (token != null && token.isNotEmpty) {
+      try {
+        final user =
+            await remoteDataSource.getUserProfile(accessToken: token);
+        await localDataSource.saveUser(user);
+        return user;
+      } catch (e) {
+        final cached = await localDataSource.getUser();
+        if (cached != null) return cached;
+        rethrow;
+      }
+    }
+    final cached = await localDataSource.getUser();
+    if (cached != null) return cached;
+    throw Exception('No active session or access token found');
+  }
+
+  @override
   Future<void> sendPhoneOtp(String phoneNumber) async {
-    // Simulates sending 4-digit OTP SMS to the phone number
-    await Future.delayed(const Duration(milliseconds: 300));
+    await remoteDataSource.sendOtp(phoneNumber);
+  }
+
+  @override
+  Future<void> resendPhoneOtp(String phoneNumber) async {
+    await remoteDataSource.resendOtp(phoneNumber);
   }
 
   @override
@@ -23,20 +52,14 @@ class AuthRepositoryImpl implements AuthRepository {
     required String phoneNumber,
     required String otp,
   }) async {
-    // Any valid 4-digit OTP grants entry as authenticated BlaBlaCar user
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    final user = UserProfile(
-      id: 'usr_${phoneNumber.replaceAll(RegExp(r'[^0-9]'), '')}',
-      firstName: 'Venkatesh',
-      lastName: '',
-      email: '$phoneNumber@pathway.com',
-      phoneNumber: phoneNumber,
-      authProvider: 'phone',
-      optOutMarketing: false,
+    final authResponse = await remoteDataSource.verifyOtp(
+      phone: phoneNumber,
+      otp: otp,
     );
-    await localDataSource.saveUser(user);
-    return user;
+    // Store whole response data in SharedPreferences via AuthLocalStorage
+    await localDataSource.saveWholeAuthData(authResponse.rawData);
+    await localDataSource.saveUser(authResponse.user);
+    return authResponse.user;
   }
 
   @override
@@ -86,6 +109,26 @@ class AuthRepositoryImpl implements AuthRepository {
       optOutMarketing: optOutMarketing,
     );
     await localDataSource.saveUser(user);
+    return user;
+  }
+
+  @override
+  Future<UserProfile> registerUser({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    String role = 'user',
+  }) async {
+    final user = await remoteDataSource.register(
+      name: name,
+      email: email,
+      phone: phone,
+      password: password,
+      role: role,
+    );
+    // User is registered on backend. After registration success,
+    // user goes to AuthWelcomePage to sign in, so do not persist active session yet.
     return user;
   }
 
