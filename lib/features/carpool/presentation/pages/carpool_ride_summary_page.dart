@@ -1,11 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pathway/core/storage/auth_local_storage.dart';
 import 'package:pathway/core/utils/carpool_distance_calculator.dart';
 import 'package:pathway/core/utils/carpool_formatters.dart';
 import 'package:pathway/core/utils/carpool_status.dart';
 
 import '../../data/datasources/carpool_mock_data_source.dart';
 import '../../data/repositories/carpool_repository_impl.dart';
+import '../../domain/entities/carpool_pricing_entity.dart';
 import '../../domain/usecases/carpool_usecases.dart';
 import '../bloc/carpool_offer_ride_bloc.dart';
 import '../widgets/real_google_map_preview.dart';
@@ -14,19 +16,24 @@ import 'carpool_ride_published_page.dart';
 /// Clean Architecture Route Summary & Booking Confirmation Screen.
 /// - Top half: Authentic Google Maps route canvas showing from & to distance and pins.
 /// - Bottom half: Card with from & to locations, date & time, seat booking,
-///   distance-based price breakdown (₹10/km), and Confirm Booking button.
+///   distance-based price breakdown, and Confirm Booking button.
 class CarpoolRideSummaryPage extends StatelessWidget {
   final CarpoolOfferRideBloc? bloc;
+  final CarpoolPricingEntity? pricing;
 
-  const CarpoolRideSummaryPage({super.key, this.bloc});
+  const CarpoolRideSummaryPage({super.key, this.bloc, this.pricing});
 
   /// Navigates to [CarpoolRideSummaryPage] sharing the given [CarpoolOfferRideBloc].
-  static Future<void> show(BuildContext context, CarpoolOfferRideBloc bloc) {
+  static Future<void> show(
+    BuildContext context,
+    CarpoolOfferRideBloc bloc, {
+    CarpoolPricingEntity? pricing,
+  }) {
     return Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: bloc,
-          child: CarpoolRideSummaryPage(bloc: bloc),
+          child: CarpoolRideSummaryPage(bloc: bloc, pricing: pricing),
         ),
       ),
     );
@@ -35,12 +42,15 @@ class CarpoolRideSummaryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (bloc != null) {
-      return BlocProvider.value(value: bloc!, child: const _RideSummaryView());
+      return BlocProvider.value(
+        value: bloc!,
+        child: _RideSummaryView(pricing: pricing),
+      );
     }
 
     try {
       context.read<CarpoolOfferRideBloc>();
-      return const _RideSummaryView();
+      return _RideSummaryView(pricing: pricing);
     } catch (_) {
       final remoteDataSource = CarpoolMockDataSource();
       final repository = CarpoolRepositoryImpl(remoteDataSource);
@@ -48,14 +58,15 @@ class CarpoolRideSummaryPage extends StatelessWidget {
         create: (_) => CarpoolOfferRideBloc(
           publishRide: CarpoolPublishRideUseCase(repository),
         ),
-        child: const _RideSummaryView(),
+        child: _RideSummaryView(pricing: pricing),
       );
     }
   }
 }
 
 class _RideSummaryView extends StatefulWidget {
-  const _RideSummaryView();
+  final CarpoolPricingEntity? pricing;
+  const _RideSummaryView({this.pricing});
 
   @override
   State<_RideSummaryView> createState() => _RideSummaryViewState();
@@ -87,6 +98,13 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
       listenWhen: (p, c) => p.status != c.status,
       listener: (context, s) {
         if (s.status == CarpoolStatus.success && s.publishedRide != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ride published successfully'),
+              backgroundColor: Color(0xFF22C55E),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
           Navigator.of(context, rootNavigator: true).pushReplacement(
             MaterialPageRoute(
               builder: (_) => CarpoolRidePublishedPage(ride: s.publishedRide!),
@@ -94,7 +112,11 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
           );
         } else if (s.status == CarpoolStatus.failure) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(s.error ?? 'Could not confirm booking')),
+            SnackBar(
+              content: Text(s.error ?? 'Could not confirm booking'),
+              backgroundColor: const Color(0xFFE53935),
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         }
       },
@@ -107,39 +129,48 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
             ? screenHeight * 0.78
             : screenHeight * 0.44;
 
-        // Pricing logic: ₹10 per km as requested
-        const int ratePerKm = 10;
-        final int activeDistanceKm = s.selectedStopovers.isNotEmpty
-            ? CarpoolDistanceCalculator.calculateMultiStopDistance(
-                s.from,
-                s.to,
-                s.selectedStopovers.toList(),
-                startLat: s.fromLat,
-                startLng: s.fromLng,
-                destLat: s.toLat,
-                destLng: s.toLng,
-              )
-            : (_liveDistanceResult?.distanceKm ??
-                  CarpoolDistanceCalculator.calculateDistanceKm(
+        // Pricing logic using dynamic API calculation when available
+        final pricing = s.pricingCalculation ?? widget.pricing;
+        final double ratePerKm = pricing?.ratePerKm ?? 3.5;
+        final double distanceKmDouble =
+            pricing?.distanceKm ??
+            (s.selectedStopovers.isNotEmpty
+                ? CarpoolDistanceCalculator.calculateMultiStopDistance(
                     s.from,
                     s.to,
-                    fromLat: s.fromLat,
-                    fromLng: s.fromLng,
-                    toLat: s.toLat,
-                    toLng: s.toLng,
-                  ));
-        final int distanceKm = activeDistanceKm;
-        final int calculatedTotalPrice = distanceKm * ratePerKm;
-        final int calculatedPricePerSeat =
-            (calculatedTotalPrice / (s.seats > 0 ? s.seats : 1)).round();
+                    s.selectedStopovers.toList(),
+                    startLat: s.fromLat,
+                    startLng: s.fromLng,
+                    destLat: s.toLat,
+                    destLng: s.toLng,
+                  ).toDouble()
+                : (_liveDistanceResult?.distanceKm?.toDouble() ??
+                      CarpoolDistanceCalculator.calculateDistanceKm(
+                        s.from,
+                        s.to,
+                        fromLat: s.fromLat,
+                        fromLng: s.fromLng,
+                        toLat: s.toLat,
+                        toLng: s.toLng,
+                      ).toDouble()));
+        final int distanceKm = distanceKmDouble.round();
+        final int suggestedPrice =
+            pricing?.suggestedPrice ?? (distanceKm * ratePerKm).round();
+        final int minAllowedPrice =
+            pricing?.minAllowedPrice ?? (suggestedPrice * 0.75).round();
+        final int maxAllowedPrice =
+            pricing?.maxAllowedPrice ?? (suggestedPrice * 1.30).round();
+        final int calculatedPricePerSeat = suggestedPrice;
         final int effectivePricePerSeat =
             s.pricePerSeat ?? calculatedPricePerSeat;
-        final int effectiveTotalPrice = effectivePricePerSeat * s.seats;
+        final int seats = s.seats > 0 ? s.seats : 1;
+        final int effectiveTotalPrice = effectivePricePerSeat * seats;
         final int totalPrice = effectiveTotalPrice;
         final int pricePerSeat = effectivePricePerSeat;
-        final String durationText =
-            _liveDistanceResult?.durationText ??
-            CarpoolDistanceCalculator.estimateDuration(distanceKm);
+        final String durationText = pricing != null
+            ? pricing.formattedDuration
+            : (_liveDistanceResult?.durationText ??
+                  CarpoolDistanceCalculator.estimateDuration(distanceKm));
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7F6FD),
@@ -352,6 +383,16 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
 
                             const SizedBox(height: 14),
 
+                            // ── Vehicle Information Card ────────────────────
+                            _buildVehicleInformationCard(
+                              context: context,
+                              bloc: bloc,
+                              vehicleModel: s.vehicleModel,
+                              vehicleNumber: s.vehicleNumber,
+                            ),
+
+                            const SizedBox(height: 14),
+
                             // ── 2. Date & Time Row ──────────────────────────
                             _buildDateTimeRow(s.departure),
 
@@ -362,28 +403,38 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
 
                             const SizedBox(height: 16),
 
-                            // ── 4. Distance & Price Calculation (₹10/km) ────
-                            // _buildPriceCalculationCard(
-                            //   distanceKm: distanceKm,
-                            //   ratePerKm: ratePerKm,
-                            //   totalPrice: totalPrice,
-                            //   pricePerSeat: pricePerSeat,
-                            //   seats: s.seats,
-                            // ),
                             _buildPriceMarginRow(
                               pricePerSeat: effectivePricePerSeat,
                               totalPrice: effectiveTotalPrice,
                               distanceKm: distanceKm,
                               ratePerKm: ratePerKm,
+                              suggestedPrice: suggestedPrice,
+                              minPrice: minAllowedPrice,
+                              maxPrice: maxAllowedPrice,
                               bloc: bloc,
                             ),
                             const SizedBox(height: 18),
 
+                            // ── 4. Distance & Price Calculation ────────────
+                            _buildPriceCalculationCard(
+                              distanceKm: distanceKmDouble,
+                              ratePerKm: ratePerKm,
+                              totalPrice: totalPrice,
+                              pricePerSeat: pricePerSeat,
+                              seats: seats,
+                              pricing: pricing,
+                              durationText: durationText,
+                            ),
+                            const SizedBox(height: 18),
                             // ── 5. Confirm Booking Button ───────────────────
                             _buildConfirmBookingButton(
                               isLoading: s.status == CarpoolStatus.loading,
-                              onPressed: () =>
-                                  bloc.add(const CarpoolOfferPublishPressed()),
+                              onPressed: () => _onConfirmBookingPressed(
+                                context,
+                                bloc,
+                                s,
+                                pricePerSeat,
+                              ),
                             ),
                           ],
                         ),
@@ -399,16 +450,108 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
     );
   }
 
+  /// Verifies ride information, vehicle details, and auth status before publishing
+  Future<void> _onConfirmBookingPressed(
+    BuildContext context,
+    CarpoolOfferRideBloc bloc,
+    CarpoolOfferRideState s,
+    int pricePerSeat,
+  ) async {
+    // 1. Verify Origin and Destination
+    if (s.from.trim().isEmpty || s.to.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select valid pick-up and drop-off locations'),
+          backgroundColor: Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (s.from.trim().toLowerCase() == s.to.trim().toLowerCase()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pick-up and drop-off locations cannot be the same'),
+          backgroundColor: Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // 2. Verify Available Seats
+    if (s.seats <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please offer at least 1 available seat'),
+          backgroundColor: Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // 3. Verify Price per Seat
+    if (pricePerSeat <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please set a valid price per seat'),
+          backgroundColor: Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // 4. Verify Vehicle Information
+    if (s.vehicleModel.trim().isEmpty || s.vehicleNumber.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Please enter your vehicle information before confirming'),
+          backgroundColor: Color(0xFF3815D8),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _showVehicleDialog(context, bloc, s.vehicleModel, s.vehicleNumber);
+      return;
+    }
+
+    // 5. Verify Authentication Token
+    final storage = AuthLocalStorage();
+    await storage.init();
+    final token = await storage.getAccessTokenAsync();
+    if (token == null || token.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in with your phone to publish a ride'),
+          backgroundColor: Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Synchronize price per seat into bloc if changed
+    if (s.pricePerSeat == null || s.pricePerSeat != pricePerSeat) {
+      bloc.add(CarpoolOfferPricePerSeatSet(pricePerSeat));
+    }
+
+    // All verifications passed -> Dispatch API publish
+    bloc.add(const CarpoolOfferPublishPressed());
+  }
+
   /// Estimates travel duration based on distance
-  // String _estimateDuration(int distanceKm) {
-  //   final totalMinutes = (distanceKm / 65 * 60).round();
-  //   final hours = totalMinutes ~/ 60;
-  //   final mins = totalMinutes % 60;
-  //   if (hours > 0) {
-  //     return '$hours hr ${mins > 0 ? '$mins min' : ''}';
-  //   }
-  //   return '$mins min';
-  // }
+  String _estimateDuration(int distanceKm) {
+    final totalMinutes = (distanceKm / 65 * 60).round();
+    final hours = totalMinutes ~/ 60;
+    final mins = totalMinutes % 60;
+    if (hours > 0) {
+      return '$hours hr ${mins > 0 ? '$mins min' : ''}';
+    }
+    return '$mins min';
+  }
 
   /// Builds the Route From & To display card with accurate Google Map styling
   Widget _buildRouteCard(
@@ -714,6 +857,278 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
     );
   }
 
+  /// Builds the Vehicle Information Card
+  Widget _buildVehicleInformationCard({
+    required BuildContext context,
+    required CarpoolOfferRideBloc bloc,
+    required String vehicleModel,
+    required String vehicleNumber,
+  }) {
+    final bool hasVehicle =
+        vehicleModel.trim().isNotEmpty || vehicleNumber.trim().isNotEmpty;
+    final String subtitleText = hasVehicle
+        ? [
+            if (vehicleModel.trim().isNotEmpty) vehicleModel.trim(),
+            if (vehicleNumber.trim().isNotEmpty) vehicleNumber.trim(),
+          ].join(' • ')
+        : 'Tap to add vehicle model & number';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F7FD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEDE8FF), width: 1.2),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () =>
+              _showVehicleDialog(context, bloc, vehicleModel, vehicleNumber),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.directions_car_rounded,
+                  color: Color(0xFF3815D8),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Vehical information',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF140D43),
+                            ),
+                          ),
+                          const Text(
+                            ' *',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitleText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: hasVehicle
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: hasVehicle
+                              ? const Color(0xFF3815D8)
+                              : const Color(0xFF6B658C),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF6B658C),
+                  size: 22,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Opens the Vehicle Information dialog box to enter vehicleModel and vehicleNumber
+  void _showVehicleDialog(
+    BuildContext context,
+    CarpoolOfferRideBloc bloc,
+    String currentModel,
+    String currentNumber,
+  ) {
+    final modelController = TextEditingController(text: currentModel);
+    final numberController = TextEditingController(text: currentNumber);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        title: const Row(
+          children: [
+            Icon(
+              Icons.directions_car_rounded,
+              color: Color(0xFF3815D8),
+              size: 24,
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Vehicle Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF140D43),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 6),
+              const Text(
+                'Vehicle Model',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF6B658C),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: modelController,
+                textCapitalization: TextCapitalization.words,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF140D43),
+                ),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Honda City, Maruti Swift',
+                  hintStyle: const TextStyle(
+                    fontSize: 13.5,
+                    color: Color(0xFF9E98BE),
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF7F5FE),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEDE8FF)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEDE8FF)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3815D8),
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Vehicle Number',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF6B658C),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: numberController,
+                textCapitalization: TextCapitalization.characters,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF140D43),
+                ),
+                decoration: InputDecoration(
+                  hintText: 'e.g. TS 09 AB 1234',
+                  hintStyle: const TextStyle(
+                    fontSize: 13.5,
+                    color: Color(0xFF9E98BE),
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF7F5FE),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEDE8FF)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEDE8FF)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3815D8),
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                color: Color(0xFF6B658C),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3815D8),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              final model = modelController.text.trim();
+              final number = numberController.text.trim();
+              bloc.add(
+                CarpoolOfferVehicleChanged(model: model, number: number),
+              );
+              Navigator.pop(ctx);
+            },
+            child: const Text(
+              'Save',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Builds the Date & Time Row with rounded info pills
   Widget _buildDateTimeRow(DateTime departure) {
     return Row(
@@ -891,7 +1306,10 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
     required int pricePerSeat,
     required int totalPrice,
     required int distanceKm,
-    required int ratePerKm,
+    required num ratePerKm,
+    int? suggestedPrice,
+    int? minPrice,
+    int? maxPrice,
     required CarpoolOfferRideBloc bloc,
   }) {
     return Container(
@@ -921,16 +1339,18 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
                     color: Color(0xFF140D43),
                   ),
                 ),
-                // Text(
-                //   '₹$ratePerKm/km ($distanceKm km) • Total: ₹$totalPrice',
-                //   maxLines: 1,
-                //   overflow: TextOverflow.ellipsis,
-                //   style: const TextStyle(
-                //     fontSize: 11.5,
-                //     fontWeight: FontWeight.w500,
-                //     color: Color(0xFF6B658C),
-                //   ),
-                // ),
+                Text(
+                  suggestedPrice != null
+                      ? '₹$ratePerKm/km • Suggested: ₹$suggestedPrice (₹${minPrice ?? 0}-₹${maxPrice ?? 0})'
+                      : '₹$ratePerKm/km ($distanceKm km) • Total: ₹$totalPrice',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B658C),
+                  ),
+                ),
               ],
             ),
           ),
@@ -967,117 +1387,145 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
     );
   }
 
-  /// Builds the Price & Distance breakdown card at ₹10/km
-  // Widget _buildPriceCalculationCard({
-  //   required int distanceKm,
-  //   required int ratePerKm,
-  //   required int totalPrice,
-  //   required int pricePerSeat,
-  //   required int seats,
-  // }) {
-  //   return Container(
-  //     padding: const EdgeInsets.all(16),
-  //     decoration: BoxDecoration(
-  //       color: const Color(0xFFF4F1FD),
-  //       borderRadius: BorderRadius.circular(20),
-  //       border: Border.all(color: const Color(0xFFE2DCF9), width: 1.3),
-  //     ),
-  //     child: Column(
-  //       crossAxisAlignment: CrossAxisAlignment.start,
-  //       children: [
-  //         const Row(
-  //           children: [
-  //             Icon(
-  //               Icons.receipt_long_rounded,
-  //               color: Color(0xFF3815D8),
-  //               size: 20,
-  //             ),
-  //             SizedBox(width: 8),
-  //             Text(
-  //               'Price & Fare Breakdown',
-  //               style: TextStyle(
-  //                 fontSize: 14.5,
-  //                 fontWeight: FontWeight.w800,
-  //                 color: Color(0xFF140D43),
-  //               ),
-  //             ),
-  //             Spacer(),
-  //             // Rate badge: 10 ₹/km
-  //             _RateBadge(rateText: '₹10 / km'),
-  //           ],
-  //         ),
-  //         const SizedBox(height: 12),
+  /// Builds the Price & Distance breakdown card using dynamic pricing calculation
+  Widget _buildPriceCalculationCard({
+    required num distanceKm,
+    required num ratePerKm,
+    required int totalPrice,
+    required int pricePerSeat,
+    required int seats,
+    CarpoolPricingEntity? pricing,
+    String? durationText,
+  }) {
+    final String displayDistance = distanceKm is double && distanceKm % 1 != 0
+        ? distanceKm.toStringAsFixed(1)
+        : '${distanceKm.round()}';
 
-  //         // Distance row
-  //         _buildFareRow('Estimated Distance', '$distanceKm km'),
-  //         const SizedBox(height: 6),
+    final String displayRate = ratePerKm is double && ratePerKm % 1 != 0
+        ? ratePerKm.toStringAsFixed(1)
+        : '${ratePerKm.round()}';
 
-  //         // Rate per km row
-  //         _buildFareRow('Rate per Kilometer', '₹$ratePerKm / km'),
-  //         const SizedBox(height: 6),
+    final String displayDuration =
+        durationText ??
+        (pricing != null
+            ? pricing.formattedDuration
+            : _estimateDuration(distanceKm.round()));
 
-  //         // Calculation row
-  //         _buildFareRow(
-  //           'Distance Fare ($distanceKm km × ₹$ratePerKm)',
-  //           '₹$totalPrice',
-  //         ),
-  //         const SizedBox(height: 6),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F1FD),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2DCF9), width: 1.3),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.receipt_long_rounded,
+                color: Color(0xFF3815D8),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Price & Fare Breakdown',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF140D43),
+                ),
+              ),
+              const Spacer(),
+              // Rate badge
+              // _RateBadge(rateText: '₹$displayRate / km'),
+            ],
+          ),
+          const SizedBox(height: 12),
 
-  //         // Per seat estimate
-  //         // _buildFareRow('Price per Seat ($seats seats)', '₹$pricePerSeat / seat'),
-  //         const Divider(height: 16, thickness: 1, color: Color(0xFFE2DCF9)),
+          // Total Distance row
+          _buildFareRow('Total Distance', '$displayDistance km'),
+          const SizedBox(height: 6),
 
-  //         // Total Fare Highlight Row
-  //         Row(
-  //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //           children: [
-  //             const Text(
-  //               'Total Price',
-  //               style: TextStyle(
-  //                 fontSize: 15.5,
-  //                 fontWeight: FontWeight.w800,
-  //                 color: Color(0xFF140D43),
-  //               ),
-  //             ),
-  //             Text(
-  //               '₹$totalPrice',
-  //               style: const TextStyle(
-  //                 fontSize: 22,
-  //                 fontWeight: FontWeight.w900,
-  //                 color: Color(0xFF3815D8),
-  //                 letterSpacing: -0.5,
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
+          // Estimated Duration row
+          _buildFareRow('Estimated Duration', displayDuration),
+          const SizedBox(height: 6),
 
-  // Widget _buildFareRow(String title, String value) {
-  //   return Row(
-  //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //     children: [
-  //       Text(
-  //         title,
-  //         style: const TextStyle(
-  //           fontSize: 12.5,
-  //           fontWeight: FontWeight.w500,
-  //           color: Color(0xFF6B658C),
-  //         ),
-  //       ),
-  //       Text(
-  //         value,
-  //         style: const TextStyle(
-  //           fontSize: 13,
-  //           fontWeight: FontWeight.w700,
-  //           color: Color(0xFF140D43),
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
+          // Seats Offered row
+          _buildFareRow(
+            'Seats Offered',
+            '$seats ${seats == 1 ? 'seat' : 'seats'}',
+          ),
+          const SizedBox(height: 6),
+
+          // // Rate per km row
+          // _buildFareRow('Rate per Kilometer', '₹$displayRate / km'),
+          // const SizedBox(height: 6),
+
+          // Price per seat row
+          _buildFareRow('Price per Seat', '₹$pricePerSeat '),
+          const SizedBox(height: 6),
+
+          // Calculation breakdown row: seat × distance × ratePerKm
+          _buildFareRow(
+            'Calculation ($seats seats × $displayDistance km × ₹$displayRate)',
+            '₹$totalPrice',
+          ),
+
+          const Divider(height: 16, thickness: 1, color: Color(0xFFE2DCF9)),
+
+          // Total Fare Highlight Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Total Price',
+                style: TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF140D43),
+                ),
+              ),
+              Text(
+                '₹$totalPrice',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF3815D8),
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFareRow(String title, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF6B658C),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF140D43),
+          ),
+        ),
+      ],
+    );
+  }
 
   /// Builds the Confirm Booking Gradient Button
   Widget _buildConfirmBookingButton({

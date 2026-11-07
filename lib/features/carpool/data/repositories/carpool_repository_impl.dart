@@ -1,5 +1,7 @@
 import '../../domain/entities/carpool_entities.dart';
+import '../../domain/entities/carpool_pricing_entity.dart';
 import '../../domain/repositories/carpool_repository.dart';
+import '../../domain/usecases/carpool_calculate_pricing_usecase.dart';
 import '../datasources/carpool_remote_data_source.dart';
 
 class CarpoolRepositoryImpl implements CarpoolRepository {
@@ -40,4 +42,10 @@ class CarpoolRepositoryImpl implements CarpoolRepository {
 
   @override
   Future<List<CarpoolMessageEntity>> getMessages() => _remote.fetchMessages();
+
+  @override
+  Future<CarpoolPricingEntity> calculatePricing(
+    CarpoolCalculatePricingParams params,
+  ) =>
+      _remote.calculatePricing(params);
 }

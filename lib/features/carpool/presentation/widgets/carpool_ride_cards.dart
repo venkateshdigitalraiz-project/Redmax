@@ -137,14 +137,22 @@ class CarpoolMyRideCard extends StatelessWidget {
         return 'Completed';
       case CarpoolRideStatus.cancelled:
         return 'Cancelled';
+      default:
+        return 'Upcoming';
     }
   }
 
-  Color get _chipColor => ride.status == CarpoolRideStatus.cancelled
-      ? AppColors.error
-      : (ride.status == CarpoolRideStatus.completed
-            ? AppColors.success
-            : AppColors.primary);
+  Color get _chipColor {
+    switch (ride.status) {
+      case CarpoolRideStatus.cancelled:
+        return AppColors.error;
+      case CarpoolRideStatus.completed:
+        return AppColors.success;
+      case CarpoolRideStatus.upcoming:
+      default:
+        return AppColors.primary;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:pathway/core/theme/app_colors.dart';
+import 'package:pathway/core/utils/carpool_distance_calculator.dart';
 import 'package:pathway/core/utils/carpool_formatters.dart';
-import 'package:pathway/core/utils/carpool_status.dart';
 
 import '../../data/datasources/carpool_mock_data_source.dart';
 import '../../data/repositories/carpool_repository_impl.dart';
 import '../../domain/usecases/carpool_usecases.dart';
 import '../bloc/carpool_offer_ride_bloc.dart';
-import 'carpool_ride_summary_page.dart';
 import 'carpool_select_route_page.dart';
 import 'carpool_stopovers_page.dart';
 
@@ -34,6 +32,8 @@ class CarpoolPublishRidePage extends StatelessWidget {
             return null;
           }
         }();
+
+    b?.add(const CarpoolOfferClearRoute());
 
     return Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
@@ -78,28 +78,29 @@ class _PublishRideView extends StatefulWidget {
 
 class _PublishRideViewState extends State<_PublishRideView> {
   bool _isNavigating = false;
+  bool _hasSelectedRoute = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<CarpoolOfferRideBloc>().add(
-          const CarpoolOfferResetStatus(),
-        );
+        final bloc = context.read<CarpoolOfferRideBloc>();
+        bloc.add(const CarpoolOfferResetStatus());
+        bloc.add(const CarpoolOfferClearRoute());
       }
     });
   }
 
-  void _onPublishPressed(
+  Future<void> _onPublishPressed(
     BuildContext context,
     CarpoolOfferRideBloc bloc,
     CarpoolOfferRideState s,
-  ) {
+  ) async {
     if (_isNavigating) return;
 
-    final from = s.from.trim();
-    final to = s.to.trim();
+    final from = _hasSelectedRoute ? s.from.trim() : '';
+    final to = _hasSelectedRoute ? s.to.trim() : '';
 
     if (from.isEmpty || to.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -109,7 +110,13 @@ class _PublishRideViewState extends State<_PublishRideView> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-      CarpoolSelectRoutePage.show(context, bloc);
+      await CarpoolSelectRoutePage.show(context, bloc);
+      if (mounted) {
+        final curState = bloc.state;
+        if (curState.from.trim().isNotEmpty && curState.to.trim().isNotEmpty) {
+          setState(() => _hasSelectedRoute = true);
+        }
+      }
       return;
     }
 
@@ -126,6 +133,26 @@ class _PublishRideViewState extends State<_PublishRideView> {
     }
 
     setState(() => _isNavigating = true);
+
+    // Resolve coordinates for pricing calculate API
+    final fromGeo = CarpoolDistanceCalculator.findGeo(from);
+    final toGeo = CarpoolDistanceCalculator.findGeo(to);
+
+    final oLat =
+        (s.fromLat != 0.0 ? s.fromLat : null) ?? fromGeo?.lat ?? 28.6139;
+    final oLng =
+        (s.fromLng != 0.0 ? s.fromLng : null) ?? fromGeo?.lng ?? 77.2090;
+    final dLat = (s.toLat != 0.0 ? s.toLat : null) ?? toGeo?.lat ?? 26.9124;
+    final dLng = (s.toLng != 0.0 ? s.toLng : null) ?? toGeo?.lng ?? 75.7873;
+
+    bloc.add(
+      CarpoolOfferCalculatePricing(
+        originLat: oLat,
+        originLng: oLng,
+        destinationLat: dLat,
+        destinationLng: dLng,
+      ),
+    );
 
     Navigator.of(context, rootNavigator: true)
         .push(
@@ -362,16 +389,46 @@ class _PublishRideViewState extends State<_PublishRideView> {
                                 const _CardDivider(),
 
                                 // Route Row
-                                _CardInfoRow(
-                                  icon: Icons.location_on_rounded,
-                                  title: 'Route',
-                                  subtitle: '${s.from} → ${s.to}',
-                                  isRouteBold: true,
-                                  onTap: () => CarpoolSelectRoutePage.show(
-                                    context,
-                                    bloc,
-                                  ),
-                                ),
+                                () {
+                                  final bool hasFrom =
+                                      _hasSelectedRoute &&
+                                      s.from.trim().isNotEmpty;
+                                  final bool hasTo =
+                                      _hasSelectedRoute &&
+                                      s.to.trim().isNotEmpty;
+                                  final bool hasRoute = hasFrom && hasTo;
+
+                                  final String routeSubtitle = hasRoute
+                                      ? '${s.from.trim()} → ${s.to.trim()}'
+                                      : (hasFrom
+                                            ? '${s.from.trim()} → Select drop-off'
+                                            : (hasTo
+                                                  ? 'Select pick-up → ${s.to.trim()}'
+                                                  : 'Select Route'));
+
+                                  return _CardInfoRow(
+                                    icon: Icons.location_on_rounded,
+                                    title: 'Route',
+                                    subtitle: routeSubtitle,
+                                    isRouteBold: hasRoute,
+                                    isPlaceholder: !hasRoute,
+                                    onTap: () async {
+                                      await CarpoolSelectRoutePage.show(
+                                        context,
+                                        bloc,
+                                      );
+                                      if (mounted) {
+                                        final curState = bloc.state;
+                                        if (curState.from.trim().isNotEmpty ||
+                                            curState.to.trim().isNotEmpty) {
+                                          setState(
+                                            () => _hasSelectedRoute = true,
+                                          );
+                                        }
+                                      }
+                                    },
+                                  );
+                                }(),
 
                                 const _CardDivider(),
 
@@ -648,6 +705,7 @@ class _CardInfoRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool isRouteBold;
+  final bool isPlaceholder;
   final VoidCallback? onTap;
 
   const _CardInfoRow({
@@ -655,6 +713,7 @@ class _CardInfoRow extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.isRouteBold = false,
+    this.isPlaceholder = false,
     this.onTap,
   });
 
@@ -681,10 +740,14 @@ class _CardInfoRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF140D43),
+                    fontWeight: isPlaceholder
+                        ? FontWeight.w600
+                        : FontWeight.w800,
+                    color: isPlaceholder
+                        ? const Color(0xFF8E88B0)
+                        : const Color(0xFF140D43),
                   ),
                 ),
               ],

@@ -36,12 +36,14 @@ class CarpoolMyRidesState extends Equatable {
     this.tabIndex = 0,
     this.rides = const [],
     this.message,
+    this.cancellingRideId,
   });
 
   final CarpoolStatus status;
   final int tabIndex;
   final List<CarpoolRideEntity> rides;
   final String? message;
+  final String? cancellingRideId;
 
   List<CarpoolRideEntity> get visibleRides => rides
       .where(
@@ -51,20 +53,44 @@ class CarpoolMyRidesState extends Equatable {
       )
       .toList();
 
+  int get upcomingCount =>
+      rides.where((r) => r.status == CarpoolRideStatus.upcoming).length;
+  int get pastCount =>
+      rides.where((r) => r.status != CarpoolRideStatus.upcoming).length;
+
+  int get totalBookingsCount {
+    int total = 0;
+    for (final r in rides) {
+      total += r.totalBookings;
+    }
+    return total;
+  }
+
   CarpoolMyRidesState copyWith({
     CarpoolStatus? status,
     int? tabIndex,
     List<CarpoolRideEntity>? rides,
     String? message,
+    String? cancellingRideId,
+    bool clearCancelling = false,
   }) => CarpoolMyRidesState(
     status: status ?? this.status,
     tabIndex: tabIndex ?? this.tabIndex,
     rides: rides ?? this.rides,
     message: message,
+    cancellingRideId: clearCancelling
+        ? null
+        : (cancellingRideId ?? this.cancellingRideId),
   );
 
   @override
-  List<Object?> get props => [status, tabIndex, rides, message];
+  List<Object?> get props => [
+    status,
+    tabIndex,
+    rides,
+    message,
+    cancellingRideId,
+  ];
 }
 
 class CarpoolMyRidesBloc
@@ -102,19 +128,34 @@ class CarpoolMyRidesBloc
     CarpoolMyRidesCancelPressed e,
     Emitter<CarpoolMyRidesState> emit,
   ) async {
+    // 1. Mark only this specific ride as cancelling
+    emit(state.copyWith(cancellingRideId: e.rideId));
     try {
       await _cancelRide(e.rideId);
-      final rides = await _getMyRides(const CarpoolNoParams());
+      // 2. Update only this specific ride in the list without affecting others
+      final updatedRides = state.rides.map((r) {
+        if (r.id == e.rideId) {
+          return r.copyWith(status: CarpoolRideStatus.cancelled);
+        }
+        return r;
+      }).toList();
+
       emit(
         state.copyWith(
           status: CarpoolStatus.success,
-          rides: rides,
-          message: 'Ride cancelled',
+          rides: updatedRides,
+          clearCancelling: true,
+          message: 'Booking cancelled successfully',
         ),
       );
     } catch (err) {
-      emit(state.copyWith(message: 'Could not cancel the ride'));
+      final msg = err.toString().replaceFirst('Exception: ', '');
+      emit(
+        state.copyWith(
+          clearCancelling: true,
+          message: msg.isNotEmpty ? msg : 'Could not cancel the ride',
+        ),
+      );
     }
-    emit(state.copyWith());
   }
 }

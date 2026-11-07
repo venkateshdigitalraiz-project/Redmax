@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:pathway/features/auth/presentation/bloc/auth_state.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pathway/features/carpool/presentation/pages/carpool_shell_page.dart';
 import 'package:pathway/features/party_booking/presentation/pages/party_shell_page.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../domain/entities/dashboard_service_item.dart';
 import '../../domain/entities/recent_activity_entry.dart';
 import '../bloc/dashboard_bloc.dart';
@@ -80,9 +82,46 @@ class _DashboardShellPageState extends State<DashboardShellPage>
       _buildAccountTab(isDark),
     ];
 
-    return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: tabs),
-      bottomNavigationBar: _buildBottomNav(isDark),
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline_rounded,
+                      color: Colors.white, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      state.errorMessage!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+        if (state.status == AuthStatus.unauthenticated) {
+          context.go(AppRoutes.welcome);
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(index: _currentIndex, children: tabs),
+        bottomNavigationBar: _buildBottomNav(isDark),
+      ),
     );
   }
 

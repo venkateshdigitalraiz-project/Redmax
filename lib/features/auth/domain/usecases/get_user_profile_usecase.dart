@@ -10,3 +10,4 @@ class GetUserProfileUseCase {
     return await repository.getUserProfile();
   }
 }
+

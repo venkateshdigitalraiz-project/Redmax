@@ -47,16 +47,36 @@ class ApiLogger {
     required String url,
     required String method,
     required String body,
+    Map<String, String>? headers,
   }) {
+    final headersMap = headers ??
+        {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        };
+
+    final headerStr = headersMap.entries
+        .map((e) {
+          if (e.key.toLowerCase() == 'authorization') {
+            final val = e.value;
+            final preview = val.length > 25
+                ? '${val.substring(0, 15)}...${val.substring(val.length - 6)}'
+                : val;
+            return '${e.key}: $preview';
+          }
+          return '${e.key}: ${e.value}';
+        })
+        .join(', ');
+
     // 1. Console / Terminal Print (100% visible in flutter run, logcat, devtools)
     print('\n==================== [API REQUEST: $title] ====================');
     print('API_URL: $url');
     print('API_METHOD: $method');
-    print('API_HEADERS: {Content-Type: application/json, Accept: application/json}');
+    print('API_HEADERS: {$headerStr}');
     print('API_BODY: $body');
     print('===============================================================\n');
 
-    debugPrint('[$title REQUEST] $method $url\nBody: $body');
+    debugPrint('[$title REQUEST] $method $url\nHeaders: {$headerStr}\nBody: $body');
 
     // 2. Add to in-app reactive log list
     final newEntry = ApiLogEntry(

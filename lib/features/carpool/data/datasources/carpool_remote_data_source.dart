@@ -1,4 +1,6 @@
 import '../../domain/entities/carpool_entities.dart';
+import '../../domain/entities/carpool_pricing_entity.dart';
+import '../../domain/usecases/carpool_calculate_pricing_usecase.dart';
 import '../models/carpool_models.dart';
 
 abstract class CarpoolRemoteDataSource {
@@ -12,4 +14,7 @@ abstract class CarpoolRemoteDataSource {
   Future<CarpoolWalletModel> fetchWallet();
   Future<CarpoolWalletModel> addMoney(double amount);
   Future<List<CarpoolMessageModel>> fetchMessages();
+  Future<CarpoolPricingEntity> calculatePricing(
+    CarpoolCalculatePricingParams params,
+  );
 }

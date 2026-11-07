@@ -398,13 +398,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LogoutEvent event,
     Emitter<AuthState> emit,
   ) async {
-    await logoutUseCase();
-    emit(const AuthState(
-      status: AuthStatus.unauthenticated,
-      user: null,
-      isFirstTime: false,
-      isOtpSent: false,
-      phoneNumber: '',
+    emit(state.copyWith(
+      status: AuthStatus.loading,
+      errorMessage: null,
+      successMessage: null,
     ));
+    try {
+      await logoutUseCase();
+      emit(const AuthState(
+        status: AuthStatus.unauthenticated,
+        user: null,
+        isFirstTime: false,
+        isOtpSent: false,
+        phoneNumber: '',
+        successMessage: 'Logged out successfully',
+      ));
+    } catch (e) {
+      final message = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      emit(state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: message,
+      ));
+    }
   }
 }

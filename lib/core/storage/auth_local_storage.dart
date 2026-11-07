@@ -23,66 +23,70 @@ class AuthLocalStorage {
   /// Initialize SharedPreferences instance
   Future<SharedPreferences> init() async {
     _prefs ??= await SharedPreferences.getInstance();
+    try {
+      await _prefs?.reload();
+    } catch (_) {}
     return _prefs!;
   }
 
   SharedPreferences? get preferences => _prefs;
 
   /// Store the whole data payload from the login response
-  ///
-  /// Expected data structure:
-  /// {
-  ///   "user": {
-  ///     "id": "...",
-  ///     "name": "...",
-  ///     "email": "...",
-  ///     "phone": "...",
-  ///     "role": "..."
-  ///   },
-  ///   "token": "...",
-  ///   "accessToken": "...",
-  ///   "refreshToken": "...",
-  ///   "expiresIn": "15m",
-  ///   "refreshExpiresAt": "..."
-  /// }
   Future<void> saveAuthData(Map<String, dynamic> data) async {
     final sp = _prefs ?? await init();
 
     // 1. Store whole response data as JSON
     await sp.setString(keyWholeAuthData, jsonEncode(data));
 
+    // Handle nested payload if data is wrapped in {"data": { ... }}
+    Map<String, dynamic> payload = data;
+    if (data.containsKey('data') && data['data'] is Map<String, dynamic>) {
+      payload = data['data'] as Map<String, dynamic>;
+    }
+
     // 2. Store tokens and expiration fields
-    if (data['token'] != null) {
-      await sp.setString(keyToken, data['token'].toString());
+    final rawToken = payload['token'] ?? data['token'];
+    final rawAccessToken = payload['accessToken'] ?? data['accessToken'] ?? rawToken;
+    final rawRefreshToken = payload['refreshToken'] ?? data['refreshToken'];
+    final rawExpiresIn = payload['expiresIn'] ?? data['expiresIn'];
+    final rawRefreshExpiresAt = payload['refreshExpiresAt'] ?? data['refreshExpiresAt'];
+
+    if (rawToken != null) {
+      final t = _cleanBearer(rawToken.toString());
+      await sp.setString(keyToken, t);
+      await sp.setString('token', t);
     }
-    if (data['accessToken'] != null) {
-      await sp.setString(keyAccessToken, data['accessToken'].toString());
+    if (rawAccessToken != null) {
+      final at = _cleanBearer(rawAccessToken.toString());
+      await sp.setString(keyAccessToken, at);
+      await sp.setString('accessToken', at);
+      await sp.setString('access_token', at);
     }
-    if (data['refreshToken'] != null) {
-      await sp.setString(keyRefreshToken, data['refreshToken'].toString());
+    if (rawRefreshToken != null) {
+      final rt = _cleanBearer(rawRefreshToken.toString());
+      await sp.setString(keyRefreshToken, rt);
+      await sp.setString('refreshToken', rt);
+      await sp.setString('refresh_token', rt);
     }
-    if (data['expiresIn'] != null) {
-      await sp.setString(keyExpiresIn, data['expiresIn'].toString());
+    if (rawExpiresIn != null) {
+      await sp.setString(keyExpiresIn, rawExpiresIn.toString());
     }
-    if (data['refreshExpiresAt'] != null) {
-      await sp.setString(keyRefreshExpiresAt, data['refreshExpiresAt'].toString());
+    if (rawRefreshExpiresAt != null) {
+      await sp.setString(keyRefreshExpiresAt, rawRefreshExpiresAt.toString());
     }
 
     // 3. Store user details
-    if (data['user'] is Map<String, dynamic>) {
-      await sp.setString(keyUserJson, jsonEncode(data['user']));
+    final userMap = payload['user'] ?? data['user'];
+    if (userMap is Map<String, dynamic>) {
+      await sp.setString(keyUserJson, jsonEncode(userMap));
     }
 
     debugPrint('\n==================== [LOCAL STORAGE: AUTH DATA STORED] ====================');
-    debugPrint('USER_ID: ${data['user']?['id'] ?? data['user']?['_id']}');
-    debugPrint('USER_NAME: ${data['user']?['name']}');
-    debugPrint('USER_PHONE: ${data['user']?['phone']}');
-    debugPrint('USER_ROLE: ${data['user']?['role']}');
-    debugPrint('TOKEN: ${data['token']}');
-    debugPrint('ACCESS_TOKEN: ${data['accessToken']}');
-    debugPrint('REFRESH_TOKEN: ${data['refreshToken']}');
-    debugPrint('EXPIRES_IN: ${data['expiresIn']}');
-    debugPrint('REFRESH_EXPIRES_AT: ${data['refreshExpiresAt']}');
+    debugPrint('USER_ID: ${userMap?['id'] ?? userMap?['_id']}');
+    debugPrint('USER_NAME: ${userMap?['name']}');
+    debugPrint('USER_PHONE: ${userMap?['phone']}');
+    debugPrint('TOKEN: $rawToken');
+    debugPrint('ACCESS_TOKEN: $rawAccessToken');
     debugPrint('SHARED_PREFERENCES: Whole response map saved to key "$keyWholeAuthData"');
     debugPrint('============================================================================\n');
   }
@@ -96,12 +100,83 @@ class AuthLocalStorage {
 
   /// Retrieve the token
   String? getToken() {
-    return _prefs?.getString(keyToken);
+    return _extractToken(_prefs);
   }
 
-  /// Retrieve the accessToken
+  /// Retrieve the accessToken synchronously
   String? getAccessToken() {
-    return _prefs?.getString(keyAccessToken) ?? _prefs?.getString(keyToken);
+    return _extractToken(_prefs);
+  }
+
+  /// Retrieve the accessToken asynchronously ensuring prefs are initialized and reloaded
+  Future<String?> getAccessTokenAsync() async {
+    final sp = await init();
+    return _extractToken(sp);
+  }
+
+  String? _extractToken(SharedPreferences? sp) {
+    if (sp == null) return null;
+
+    // 1. Direct candidate keys
+    const candidateKeys = [
+      keyAccessToken, // 'auth_access_token'
+      keyToken,       // 'auth_token'
+      'accessToken',
+      'token',
+      'access_token',
+      'authToken',
+      'jwt',
+      'jwt_token',
+      'bearer_token',
+    ];
+
+    for (final key in candidateKeys) {
+      final val = sp.getString(key);
+      if (val != null && val.trim().isNotEmpty && val != 'null') {
+        return _cleanBearer(val);
+      }
+    }
+
+    // 2. Check in whole auth data JSON ('auth_whole_data')
+    final rawWhole = sp.getString(keyWholeAuthData);
+    if (rawWhole != null && rawWhole.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawWhole);
+        if (decoded is Map<String, dynamic>) {
+          final t = decoded['accessToken'] ??
+              decoded['token'] ??
+              decoded['data']?['accessToken'] ??
+              decoded['data']?['token'];
+          if (t != null && t.toString().trim().isNotEmpty && t.toString() != 'null') {
+            return _cleanBearer(t.toString());
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Check in user JSON ('auth_user_json')
+    final rawUser = sp.getString(keyUserJson);
+    if (rawUser != null && rawUser.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawUser);
+        if (decoded is Map<String, dynamic>) {
+          final t = decoded['token'] ?? decoded['accessToken'];
+          if (t != null && t.toString().trim().isNotEmpty && t.toString() != 'null') {
+            return _cleanBearer(t.toString());
+          }
+        }
+      } catch (_) {}
+    }
+
+    return null;
+  }
+
+  String _cleanBearer(String token) {
+    final trimmed = token.trim();
+    if (trimmed.toLowerCase().startsWith('bearer ')) {
+      return trimmed.substring(7).trim();
+    }
+    return trimmed;
   }
 
   /// Retrieve the refreshToken
@@ -189,6 +264,10 @@ class AuthLocalStorage {
     await sp.remove(keyRefreshExpiresAt);
     await sp.remove(keyUserJson);
     await sp.remove(keyWholeAuthData);
+    await sp.clear();
+    debugPrint('\n==================== [LOCAL STORAGE: AUTH DATA CLEARED] ====================');
+    debugPrint('All authentication keys and SharedPreferences have been wiped successfully.');
+    debugPrint('============================================================================\n');
   }
 }
 

@@ -590,13 +590,10 @@ class _StopoversViewState extends State<_StopoversView> {
 
   void _onContinue(BuildContext context) {
     final bloc = context.read<CarpoolOfferRideBloc>();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: bloc,
-          child: CarpoolRideSummaryPage(bloc: bloc),
-        ),
-      ),
+    CarpoolRideSummaryPage.show(
+      context,
+      bloc,
+      pricing: bloc.state.pricingCalculation,
     );
   }
 

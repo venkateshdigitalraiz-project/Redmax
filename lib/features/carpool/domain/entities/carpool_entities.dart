@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/carpool_distance_calculator.dart';
+import '../../../../core/utils/carpool_formatters.dart';
 
 enum CarpoolRideStatus { upcoming, completed, cancelled }
 
@@ -67,6 +69,11 @@ class CarpoolRideEntity extends Equatable {
     required this.distanceKm,
     required this.status,
     required this.rideType,
+    this.totalBookings = 0,
+    this.vehicleModel,
+    this.vehicleNumber,
+    this.originCity,
+    this.destinationCity,
   });
 
   final String id;
@@ -82,8 +89,27 @@ class CarpoolRideEntity extends Equatable {
   final int distanceKm;
   final CarpoolRideStatus status;
   final CarpoolRideType rideType;
+  final int totalBookings;
+  final String? vehicleModel;
+  final String? vehicleNumber;
+  final String? originCity;
+  final String? destinationCity;
 
-  CarpoolRideEntity copyWith({CarpoolRideStatus? status, int? seats}) {
+  String get displayFromCity =>
+      (originCity != null && originCity!.isNotEmpty) ? originCity! : from;
+
+  String get displayToCity =>
+      (destinationCity != null && destinationCity!.isNotEmpty)
+      ? destinationCity!
+      : to;
+
+  CarpoolRideEntity copyWith({
+    CarpoolRideStatus? status,
+    int? seats,
+    int? totalBookings,
+    String? originCity,
+    String? destinationCity,
+  }) {
     return CarpoolRideEntity(
       id: id,
       driverName: driverName,
@@ -98,14 +124,35 @@ class CarpoolRideEntity extends Equatable {
       distanceKm: distanceKm,
       status: status ?? this.status,
       rideType: rideType,
+      totalBookings: totalBookings ?? this.totalBookings,
+      vehicleModel: vehicleModel,
+      vehicleNumber: vehicleNumber,
+      originCity: originCity ?? this.originCity,
+      destinationCity: destinationCity ?? this.destinationCity,
     );
   }
 
   @override
   List<Object?> get props => [
-        id, driverName, driverRating, driverTrips, vehicle, from, to,
-        departure, seats, pricePerSeat, distanceKm, status, rideType,
-      ];
+    id,
+    driverName,
+    driverRating,
+    driverTrips,
+    vehicle,
+    from,
+    to,
+    departure,
+    seats,
+    pricePerSeat,
+    distanceKm,
+    status,
+    rideType,
+    totalBookings,
+    vehicleModel,
+    vehicleNumber,
+    originCity,
+    destinationCity,
+  ];
 }
 
 class CarpoolPublishRideParams extends Equatable {
@@ -116,6 +163,20 @@ class CarpoolPublishRideParams extends Equatable {
     required this.seats,
     required this.rideType,
     this.pricePerSeat,
+    this.vehicle,
+    this.origin,
+    this.originLat,
+    this.originLng,
+    this.originCity,
+    this.destination,
+    this.destinationLat,
+    this.destinationLng,
+    this.destinationCity,
+    this.departureTime,
+    this.availableSeats,
+    this.vehicleModel,
+    this.vehicleNumber,
+    this.notes,
   });
 
   final String from;
@@ -124,9 +185,102 @@ class CarpoolPublishRideParams extends Equatable {
   final int seats;
   final CarpoolRideType rideType;
   final int? pricePerSeat;
+  final String? vehicle;
+
+  final String? origin;
+  final double? originLat;
+  final double? originLng;
+  final String? originCity;
+  final String? destination;
+  final double? destinationLat;
+  final double? destinationLng;
+  final String? destinationCity;
+  final String? departureTime;
+  final int? availableSeats;
+  final String? vehicleModel;
+  final String? vehicleNumber;
+  final String? notes;
+
+  Map<String, dynamic> toJson() {
+    final fromGeo = CarpoolDistanceCalculator.findGeo(from);
+    final toGeo = CarpoolDistanceCalculator.findGeo(to);
+
+    final resolvedOrigin = origin ?? from;
+    final resolvedDest = destination ?? to;
+
+    final resolvedOriginLat = originLat ?? fromGeo?.lat ?? 28.6315;
+    final resolvedOriginLng = originLng ?? fromGeo?.lng ?? 77.2167;
+    final resolvedOriginCity =
+        originCity ??
+        fromGeo?.district ??
+        (resolvedOrigin.contains(',')
+            ? resolvedOrigin.split(',').last.trim()
+            : resolvedOrigin);
+
+    final resolvedDestLat = destinationLat ?? toGeo?.lat ?? 26.9220;
+    final resolvedDestLng = destinationLng ?? toGeo?.lng ?? 75.7789;
+    final resolvedDestCity =
+        destinationCity ??
+        toGeo?.district ??
+        (resolvedDest.contains(',')
+            ? resolvedDest.split(',').last.trim()
+            : resolvedDest);
+
+    DateTime dtToFormat = departure;
+    if (departureTime != null && departureTime!.trim().isNotEmpty) {
+      final parsed = DateTime.tryParse(departureTime!);
+      if (parsed != null) {
+        dtToFormat = parsed;
+      }
+    }
+    final formattedUtcDepartureTime = CarpoolFormatters.toUtcIso(dtToFormat);
+
+    return {
+      'origin': resolvedOrigin,
+      'originLat': resolvedOriginLat,
+      'originLng': resolvedOriginLng,
+      'originCity': resolvedOriginCity,
+      'destination': resolvedDest,
+      'destinationLat': resolvedDestLat,
+      'destinationLng': resolvedDestLng,
+      'destinationCity': resolvedDestCity,
+      'departureTime': formattedUtcDepartureTime,
+      'availableSeats': availableSeats ?? seats,
+      'pricePerSeat': pricePerSeat ?? 100,
+      'vehicleModel': (vehicleModel != null && vehicleModel!.trim().isNotEmpty)
+          ? vehicleModel!.trim()
+          : (vehicle ?? 'Honda City'),
+      'vehicleNumber':
+          (vehicleNumber != null && vehicleNumber!.trim().isNotEmpty)
+          ? vehicleNumber!.trim()
+          : 'DL 01 AB 1234',
+      'notes': notes ?? 'Direct highway drive, air-conditioned.',
+    };
+  }
 
   @override
-  List<Object?> get props => [from, to, departure, seats, rideType, pricePerSeat];
+  List<Object?> get props => [
+    from,
+    to,
+    departure,
+    seats,
+    rideType,
+    pricePerSeat,
+    vehicle,
+    origin,
+    originLat,
+    originLng,
+    originCity,
+    destination,
+    destinationLat,
+    destinationLng,
+    destinationCity,
+    departureTime,
+    availableSeats,
+    vehicleModel,
+    vehicleNumber,
+    notes,
+  ];
 }
 
 class CarpoolSearchRidesParams extends Equatable {
@@ -164,7 +318,10 @@ class CarpoolTransactionEntity extends Equatable {
 }
 
 class CarpoolWalletEntity extends Equatable {
-  const CarpoolWalletEntity({required this.balance, required this.transactions});
+  const CarpoolWalletEntity({
+    required this.balance,
+    required this.transactions,
+  });
 
   final double balance;
   final List<CarpoolTransactionEntity> transactions;
@@ -191,6 +348,12 @@ class CarpoolMessageEntity extends Equatable {
   final CarpoolMessageCategory category;
 
   @override
-  List<Object?> get props =>
-      [id, senderName, preview, timeAgo, unreadCount, category];
+  List<Object?> get props => [
+    id,
+    senderName,
+    preview,
+    timeAgo,
+    unreadCount,
+    category,
+  ];
 }

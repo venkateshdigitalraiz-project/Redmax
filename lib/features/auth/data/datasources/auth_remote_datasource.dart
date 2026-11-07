@@ -24,6 +24,9 @@ abstract class AuthRemoteDataSource {
   Future<UserProfile> getUserProfile({
     required String accessToken,
   });
+  Future<void> logout({
+    required String refreshToken,
+  });
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -464,6 +467,82 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
       if (e is Exception) rethrow;
       throw Exception('Unexpected error fetching profile: $e');
+    }
+  }
+
+  @override
+  Future<void> logout({required String refreshToken}) async {
+    final targetUrl = ApiEndpoints.logout;
+    final uri = Uri.parse(targetUrl);
+    final payload = {
+      'refreshToken': refreshToken,
+    };
+    final payloadJson = jsonEncode(payload);
+
+    ApiLogger.logRequest(
+      title: 'LOGOUT',
+      url: targetUrl,
+      method: 'POST',
+      body: payloadJson,
+    );
+
+    try {
+      _client.connectionTimeout = const Duration(seconds: 10);
+      final request =
+          await _client.postUrl(uri).timeout(const Duration(seconds: 10));
+
+      request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      request.write(payloadJson);
+
+      final response =
+          await request.close().timeout(const Duration(seconds: 10));
+      final responseBody = await response.transform(utf8.decoder).join();
+
+      ApiLogger.logResponse(
+        title: 'LOGOUT',
+        url: targetUrl,
+        statusCode: response.statusCode,
+        responseBody: responseBody,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = jsonDecode(responseBody);
+        if (decoded is Map<String, dynamic>) {
+          final status = decoded['status']?.toString().toLowerCase();
+          if (status == 'fail' || status == 'error') {
+            throw Exception(
+              decoded['message'] ?? 'Logout failed on server',
+            );
+          }
+        }
+        return;
+      } else {
+        String errorMessage = 'Logout failed (${response.statusCode})';
+        try {
+          if (responseBody.isNotEmpty) {
+            final decoded = jsonDecode(responseBody);
+            if (decoded is Map<String, dynamic>) {
+              errorMessage = decoded['message']?.toString() ??
+                  decoded['error']?.toString() ??
+                  errorMessage;
+            }
+          }
+        } catch (_) {}
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      ApiLogger.logError(title: 'LOGOUT', url: targetUrl, error: e);
+      if (e is SocketException) {
+        throw Exception(
+          'Unable to connect to server at $targetUrl. Please verify network and server status.',
+        );
+      }
+      if (e is HttpException) {
+        throw Exception('HTTP error during logout: ${e.message}');
+      }
+      if (e is Exception) rethrow;
+      throw Exception('Unexpected error during logout: $e');
     }
   }
 

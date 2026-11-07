@@ -1,4 +1,6 @@
 import '../entities/carpool_entities.dart';
+import '../entities/carpool_pricing_entity.dart';
+import '../usecases/carpool_calculate_pricing_usecase.dart';
 
 /// Contract implemented by the data layer. The domain never depends on data.
 abstract class CarpoolRepository {
@@ -12,4 +14,7 @@ abstract class CarpoolRepository {
   Future<CarpoolWalletEntity> getWallet();
   Future<CarpoolWalletEntity> addMoney(double amount);
   Future<List<CarpoolMessageEntity>> getMessages();
+  Future<CarpoolPricingEntity> calculatePricing(
+    CarpoolCalculatePricingParams params,
+  );
 }
