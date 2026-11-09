@@ -123,7 +123,7 @@ class CarpoolRideModel extends CarpoolRideEntity {
       }
     } else {
       String raw = loc.toString().trim();
-      if (raw.startsWith('{')) {
+      if (raw.startsWith('{') || raw.contains('address:') || raw.contains('lat:')) {
         try {
           final decoded = jsonDecode(raw);
           if (decoded is Map) {
@@ -132,30 +132,33 @@ class CarpoolRideModel extends CarpoolRideEntity {
         } catch (_) {}
 
         // Match Dart Map string: {address: Connaught Place, New Delhi, lat: ...}
-        final addrMatch = RegExp(
-          r'(?:address|place|name)\s*[:=]\s*(.*?)(?:,\s*(?:lat|lng|latitude|longitude|city|state|country|district|zip|pin|postalCode|type)\s*[:=]|\}$)',
-          caseSensitive: false,
-        ).firstMatch(raw);
-
-        if (addrMatch != null) {
-          addr = addrMatch.group(1)?.trim().replaceAll(RegExp(r'''^["']|["']$'''), '') ?? '';
-        }
-
         final cityMatch = RegExp(
-          r'(?:city|district)\s*[:=]\s*(.*?)(?:,\s*(?:lat|lng|latitude|longitude|address|place|state|country|zip|pin|postalCode|type)\s*[:=]|\}$)',
+          r'(?:city|district)\s*[:=]\s*([^,}]+)',
           caseSensitive: false,
         ).firstMatch(raw);
 
         if (cityMatch != null) {
-          final parsedCity = cityMatch.group(1)?.trim().replaceAll(RegExp(r'''^["']|["']$'''), '') ?? '';
+          final parsedCity = cityMatch.group(1)?.trim().replaceAll(RegExp(r'''[{}"]'''), '') ?? '';
           if (parsedCity.isNotEmpty) {
             city = parsedCity;
           }
         }
 
-        if (addr.isEmpty) {
-          addr = city.isNotEmpty ? city : raw;
+        // Clean out metadata keys like lat, lng, latitude, longitude, city, district
+        String cleaned = raw
+            .replaceAll(RegExp(r',?\s*(?:lat|lng|latitude|longitude)\s*[:=][^,}]+', caseSensitive: false), '')
+            .replaceAll(RegExp(r',?\s*(?:city|district|state|country|zip|pin|postalCode|type)\s*[:=][^,}]+', caseSensitive: false), '')
+            .replaceAll(RegExp(r'^\s*\{\s*', caseSensitive: false), '')
+            .replaceAll(RegExp(r'\s*\}\s*$', caseSensitive: false), '')
+            .replaceAll(RegExp(r'^(?:address|place|name)\s*[:=]\s*', caseSensitive: false), '')
+            .replaceAll(RegExp(r'''[{}"]'''), '')
+            .trim();
+
+        if (cleaned.endsWith(',')) {
+          cleaned = cleaned.substring(0, cleaned.length - 1).trim();
         }
+
+        addr = cleaned.isNotEmpty ? cleaned : city;
       } else {
         addr = raw;
       }

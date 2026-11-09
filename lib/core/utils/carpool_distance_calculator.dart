@@ -1362,6 +1362,38 @@ class CarpoolDistanceCalculator {
       district: 'Pune',
       state: 'Maharashtra',
     ),
+    'duvvada': const PlaceGeoInfo(
+      name: 'Duvvada',
+      lat: 17.7051,
+      lng: 83.1491,
+      type: 'Town / Railway Junction',
+      district: 'Visakhapatnam',
+      state: 'Andhra Pradesh',
+    ),
+    'delhi': const PlaceGeoInfo(
+      name: 'Delhi',
+      lat: 28.6139,
+      lng: 77.2090,
+      type: 'Metro City',
+      district: 'Central Delhi',
+      state: 'Delhi',
+    ),
+    'newdelhi': const PlaceGeoInfo(
+      name: 'New Delhi',
+      lat: 28.6139,
+      lng: 77.2090,
+      type: 'National Capital',
+      district: 'New Delhi',
+      state: 'Delhi',
+    ),
+    'jaipur': const PlaceGeoInfo(
+      name: 'Jaipur',
+      lat: 26.9124,
+      lng: 75.7873,
+      type: 'City',
+      district: 'Jaipur',
+      state: 'Rajasthan',
+    ),
   };
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1508,7 +1540,56 @@ class CarpoolDistanceCalculator {
   // 6. PLACE CLASSIFICATION (CITY / VILLAGE / TOWN / LOCALITY)
   // ══════════════════════════════════════════════════════════════════════════
   static PlaceGeoInfo? findGeo(String location) {
-    return _findGeo(_sanitizeKey(location));
+    final trimmed = location.trim();
+    if (trimmed.isEmpty) return null;
+
+    final primary = _findGeo(_sanitizeKey(trimmed));
+    if (primary != null) return primary;
+
+    // Check all comma-separated segments (e.g. "Duvvada, Visakhapatnam")
+    final cleaned = trimmed.replaceAll(RegExp(r'''[{}"]'''), '');
+    for (final segment in cleaned.split(',')) {
+      final key = segment.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '').trim();
+      if (key.isNotEmpty) {
+        final geo = _findGeo(key);
+        if (geo != null) return geo;
+      }
+    }
+    return null;
+  }
+
+  /// Single source of truth for resolving Lat/Lng coordinates for any city/place
+  static ({double lat, double lng}) resolveCoordinates(
+    String place, {
+    double? preferredLat,
+    double? preferredLng,
+    double defaultLat = 17.3850,
+    double defaultLng = 78.4867,
+  }) {
+    final clean = place.trim();
+    if (clean.isNotEmpty) {
+      final geo = findGeo(clean);
+      if (geo != null &&
+          geo.lat >= 6.5 &&
+          geo.lat <= 38.0 &&
+          geo.lng >= 68.0 &&
+          geo.lng <= 98.0) {
+        return (lat: geo.lat, lng: geo.lng);
+      }
+    }
+
+    if (preferredLat != null &&
+        preferredLat != 0.0 &&
+        preferredLng != null &&
+        preferredLng != 0.0 &&
+        preferredLat >= 6.5 &&
+        preferredLat <= 38.0 &&
+        preferredLng >= 68.0 &&
+        preferredLng <= 98.0) {
+      return (lat: preferredLat, lng: preferredLng);
+    }
+
+    return (lat: defaultLat, lng: defaultLng);
   }
 
   static String classifyType(String mainText, [String secondary = '']) {
@@ -2095,6 +2176,10 @@ class CarpoolDistanceCalculator {
     String district = '',
     String state = '',
   }) {
+    // Strictly validate that coordinates are within India (lat: 6.5 to 38.0, lng: 68.0 to 98.0)
+    if (lat < 6.5 || lat > 38.0 || lng < 68.0 || lng > 98.0) {
+      return;
+    }
     final key = _sanitizeKey(name);
     if (key.isNotEmpty) {
       _dynamicGeoCache[key] = PlaceGeoInfo(
@@ -2109,21 +2194,66 @@ class CarpoolDistanceCalculator {
   }
 
   static String _sanitizeKey(String raw) {
-    final parts = raw.split(',');
-    final first = parts.isNotEmpty ? parts.first : raw;
+    var text = raw.trim();
+    final addrMatch = RegExp(
+      r'(?:address|place|name|city|district)\s*[:=]\s*([^,}]+)',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (addrMatch != null) {
+      text = addrMatch.group(1)?.trim() ?? text;
+    }
+    text = text.replaceAll(RegExp(r'''[{}"]'''), '').trim();
+    final parts = text.split(',');
+    final first = parts.isNotEmpty ? parts.first : text;
     return first.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '').trim();
   }
 
-  static PlaceGeoInfo? _findGeo(String key) {
-    if (_dynamicGeoCache.containsKey(key)) return _dynamicGeoCache[key];
+  /// Searches curated and cached places in India matching the query
+  static List<PlaceGeoInfo> searchLocalPlaces(String query, {int limit = 8}) {
+    final clean = query.trim().toLowerCase();
+    if (clean.isEmpty) return const [];
+    final sanitized = _sanitizeKey(clean);
+
+    final results = <PlaceGeoInfo>[];
+    final seen = <String>{};
+
+    void checkPlace(PlaceGeoInfo geo, String key) {
+      if (seen.contains(key)) return;
+      final nameLower = geo.name.toLowerCase();
+      if (key == sanitized ||
+          key.startsWith(sanitized) ||
+          nameLower.startsWith(clean) ||
+          geo.district.toLowerCase().startsWith(clean)) {
+        seen.add(key);
+        results.add(geo);
+      }
+    }
+
+    for (final entry in placeGeoDatabase.entries) {
+      checkPlace(entry.value, entry.key);
+      if (results.length >= limit) return results;
+    }
     for (final entry in _dynamicGeoCache.entries) {
-      if (key.contains(entry.key) || entry.key.contains(key)) {
+      checkPlace(entry.value, entry.key);
+      if (results.length >= limit) return results;
+    }
+    return results;
+  }
+
+  static PlaceGeoInfo? _findGeo(String key) {
+    // Verified curated database always takes priority over dynamic cache
+    if (placeGeoDatabase.containsKey(key)) return placeGeoDatabase[key];
+    if (_dynamicGeoCache.containsKey(key)) return _dynamicGeoCache[key];
+
+    for (final entry in placeGeoDatabase.entries) {
+      if (entry.key.length >= 4 &&
+          (key.contains(entry.key) || entry.key.contains(key))) {
         return entry.value;
       }
     }
-    if (placeGeoDatabase.containsKey(key)) return placeGeoDatabase[key];
-    for (final entry in placeGeoDatabase.entries) {
-      if (key.contains(entry.key) || entry.key.contains(key)) {
+    for (final entry in _dynamicGeoCache.entries) {
+      if (entry.key.length >= 4 &&
+          (key.contains(entry.key) || entry.key.contains(key))) {
         return entry.value;
       }
     }

@@ -202,14 +202,25 @@ class CarpoolPublishRideParams extends Equatable {
   final String? notes;
 
   Map<String, dynamic> toJson() {
-    final fromGeo = CarpoolDistanceCalculator.findGeo(from);
-    final toGeo = CarpoolDistanceCalculator.findGeo(to);
-
     final resolvedOrigin = origin ?? from;
     final resolvedDest = destination ?? to;
 
-    final resolvedOriginLat = originLat ?? fromGeo?.lat ?? 28.6315;
-    final resolvedOriginLng = originLng ?? fromGeo?.lng ?? 77.2167;
+    final originCoords = CarpoolDistanceCalculator.resolveCoordinates(
+      resolvedOrigin,
+      preferredLat: originLat,
+      preferredLng: originLng,
+    );
+    final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
+      resolvedDest,
+      preferredLat: destinationLat,
+      preferredLng: destinationLng,
+    );
+
+    final fromGeo = CarpoolDistanceCalculator.findGeo(resolvedOrigin);
+    final toGeo = CarpoolDistanceCalculator.findGeo(resolvedDest);
+
+    final resolvedOriginLat = originCoords.lat;
+    final resolvedOriginLng = originCoords.lng;
     final resolvedOriginCity =
         originCity ??
         fromGeo?.district ??
@@ -217,8 +228,8 @@ class CarpoolPublishRideParams extends Equatable {
             ? resolvedOrigin.split(',').last.trim()
             : resolvedOrigin);
 
-    final resolvedDestLat = destinationLat ?? toGeo?.lat ?? 26.9220;
-    final resolvedDestLng = destinationLng ?? toGeo?.lng ?? 75.7789;
+    final resolvedDestLat = destCoords.lat;
+    final resolvedDestLng = destCoords.lng;
     final resolvedDestCity =
         destinationCity ??
         toGeo?.district ??

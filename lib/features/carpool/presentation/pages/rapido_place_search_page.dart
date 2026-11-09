@@ -128,15 +128,17 @@ class _RapidoPlaceSearchViewState extends State<_RapidoPlaceSearchView> {
   void _onPlaceSelected(PlacePredictionEntity place) {
     // Return the concise main text (e.g., "Gachibowli") or full description
     final chosen = place.mainText.isNotEmpty ? place.mainText : place.description;
-    final geo = (place.lat != null && place.lng != null)
-        ? null
-        : CarpoolDistanceCalculator.findGeo(chosen);
-    final lat = place.lat ?? geo?.lat;
-    final lng = place.lng ?? geo?.lng;
+    final coords = CarpoolDistanceCalculator.resolveCoordinates(
+      chosen,
+      preferredLat: place.lat,
+      preferredLng: place.lng,
+      defaultLat: widget.isPickup ? 17.7051 : 16.3067,
+      defaultLng: widget.isPickup ? 83.1491 : 80.4365,
+    );
     Navigator.of(context).pop(CarpoolPlaceResult(
       name: chosen,
-      lat: lat,
-      lng: lng,
+      lat: coords.lat,
+      lng: coords.lng,
     ));
   }
 

@@ -73,6 +73,15 @@ class _CarpoolMyRidesPageState extends State<CarpoolMyRidesPage> {
     BuildContext context,
     CarpoolRideEntity ride,
   ) async {
+    final originInfo = _PublishedRideCard._resolveLocation(
+      ride.from,
+      ride.originCity,
+    );
+    final destInfo = _PublishedRideCard._resolveLocation(
+      ride.to,
+      ride.destinationCity,
+    );
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -110,13 +119,24 @@ class _CarpoolMyRidesPageState extends State<CarpoolMyRidesPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${ride.from} → ${ride.to}',
+              '${originInfo.place} → ${destInfo.place}',
               style: const TextStyle(
                 color: Color(0xFF140D43),
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
               ),
             ),
+            if (originInfo.city.isNotEmpty || destInfo.city.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                '${originInfo.city} to ${destInfo.city}',
+                style: const TextStyle(
+                  color: Color(0xFF6B658C),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                ),
+              ),
+            ],
             const SizedBox(height: 6),
             Text(
               CarpoolFormatters.headline(ride.departure),
@@ -200,6 +220,15 @@ class _CarpoolMyRidesPageState extends State<CarpoolMyRidesPage> {
   }
 
   void _showDetails(BuildContext context, CarpoolRideEntity ride) {
+    final originInfo = _PublishedRideCard._resolveLocation(
+      ride.from,
+      ride.originCity,
+    );
+    final destInfo = _PublishedRideCard._resolveLocation(
+      ride.to,
+      ride.destinationCity,
+    );
+
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
@@ -231,7 +260,7 @@ class _CarpoolMyRidesPageState extends State<CarpoolMyRidesPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${ride.from} → ${ride.to}',
+                        '${originInfo.place} → ${destInfo.place}',
                         style: const TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w800,
@@ -239,11 +268,10 @@ class _CarpoolMyRidesPageState extends State<CarpoolMyRidesPage> {
                           letterSpacing: -0.3,
                         ),
                       ),
-                      if (ride.originCity != null ||
-                          ride.destinationCity != null) ...[
+                      if (originInfo.city.isNotEmpty || destInfo.city.isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
-                          '${ride.displayFromCity} to ${ride.displayToCity}',
+                          '${originInfo.city} to ${destInfo.city}',
                           style: const TextStyle(
                             color: Color(0xFF6B658C),
                             fontWeight: FontWeight.w600,
@@ -277,20 +305,18 @@ class _CarpoolMyRidesPageState extends State<CarpoolMyRidesPage> {
             _detailRow(
               Icons.trip_origin_rounded,
               'Pickup Location',
-              ride.originCity != null &&
-                      ride.originCity!.isNotEmpty &&
-                      ride.originCity != ride.from
-                  ? '${ride.from} (${ride.originCity})'
-                  : ride.from,
+              originInfo.city.isNotEmpty &&
+                      originInfo.city != originInfo.place
+                  ? '${originInfo.place} (${originInfo.city})'
+                  : originInfo.place,
             ),
             _detailRow(
               Icons.location_on_rounded,
               'Dropoff Location',
-              ride.destinationCity != null &&
-                      ride.destinationCity!.isNotEmpty &&
-                      ride.destinationCity != ride.to
-                  ? '${ride.to} (${ride.destinationCity})'
-                  : ride.to,
+              destInfo.city.isNotEmpty &&
+                      destInfo.city != destInfo.place
+                  ? '${destInfo.place} (${destInfo.city})'
+                  : destInfo.place,
             ),
             _detailRow(
               Icons.person_pin_rounded,
@@ -944,34 +970,60 @@ class _PublishedRideCard extends StatelessWidget {
     required this.onCancel,
   });
 
-  ({String place, String city}) _resolveLocation(
+  static ({String place, String city}) _resolveLocation(
     String raw,
     String? fallbackCity,
   ) {
     if (raw.isEmpty) {
       return (place: fallbackCity ?? '', city: fallbackCity ?? '');
     }
-    String cleaned = raw.trim();
     String city = fallbackCity?.trim() ?? '';
 
-    if (cleaned.startsWith('{')) {
-      final addrMatch = RegExp(
-        r'(?:address|place|name)\s*[:=]\s*(.*?)(?:,\s*(?:lat|lng|latitude|longitude|city|state|country|district|zip|pin|postalCode|type)\s*[:=]|\}$)',
-        caseSensitive: false,
-      ).firstMatch(cleaned);
-      if (addrMatch != null) {
-        cleaned = addrMatch.group(1)?.trim() ?? cleaned;
-      }
-      final cityMatch = RegExp(
-        r'(?:city|district)\s*[:=]\s*(.*?)(?:,\s*(?:lat|lng|latitude|longitude|address|place|state|country|zip|pin|postalCode|type)\s*[:=]|\}$)',
-        caseSensitive: false,
-      ).firstMatch(cleaned);
-      if (cityMatch != null && city.isEmpty) {
-        city = cityMatch.group(1)?.trim() ?? '';
+    // Extract city if present via city: ... or district: ...
+    final cityMatch = RegExp(
+      r'(?:city|district)\s*[:=]\s*([^,}]+)',
+      caseSensitive: false,
+    ).firstMatch(raw);
+    if (cityMatch != null) {
+      final parsedCity = cityMatch
+              .group(1)
+              ?.trim()
+              .replaceAll(RegExp(r'''[{}"]'''), '') ??
+          '';
+      if (parsedCity.isNotEmpty) {
+        city = parsedCity;
       }
     }
 
-    cleaned = cleaned.replaceAll(RegExp(r'''[{}"]'''), '').trim();
+    // Thoroughly strip metadata keys like lat, lng, latitude, longitude, city, etc.
+    String cleaned = raw
+        .replaceAll(
+          RegExp(
+            r',?\s*(?:lat|lng|latitude|longitude)\s*[:=][^,}]+',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r',?\s*(?:city|district|state|country|zip|pin|postalCode|type)\s*[:=][^,}]+',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(RegExp(r'^\s*\{\s*', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\}\s*$', caseSensitive: false), '')
+        .replaceAll(
+          RegExp(r'^(?:address|place|name)\s*[:=]\s*', caseSensitive: false),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'(?:address|place|name)\s*[:=]\s*', caseSensitive: false),
+          '',
+        )
+        .replaceAll(RegExp(r'''[{}"]'''), '')
+        .trim();
+
     if (cleaned.endsWith(',')) {
       cleaned = cleaned.substring(0, cleaned.length - 1).trim();
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/utils/carpool_distance_calculator.dart';
 import '../../../../core/utils/carpool_formatters.dart';
 import '../../../../core/utils/carpool_status.dart';
 import '../../data/repositories/search_booking_rider_repository_impl.dart';
@@ -7,6 +8,8 @@ import '../../domain/entities/carpool_entities.dart';
 import '../../domain/entities/rider_booking_entity.dart';
 import '../../domain/usecases/search_booking_rider_usecases.dart';
 import '../bloc/search_booking_rider_bloc.dart';
+import '../widgets/carpool_route_selector_card.dart';
+import 'search_booking_details_page.dart';
 
 /// Aliases to support exact user naming conventions
 typedef searchBookingrider = SearchBookingRiderPage;
@@ -14,33 +17,130 @@ typedef SearchBookingRider = SearchBookingRiderPage;
 
 /// Clean Architecture Search & Booking Rider Page
 class SearchBookingRiderPage extends StatelessWidget {
-  const SearchBookingRiderPage({super.key});
+  final String? initialOriginCity;
+  final String? initialDestinationCity;
+  final double? initialOriginLat;
+  final double? initialOriginLng;
+  final double? initialDestinationLat;
+  final double? initialDestinationLng;
+  final DateTime? initialDate;
+  final int? initialSeats;
+  final int? initialRadiusKm;
+
+  const SearchBookingRiderPage({
+    super.key,
+    this.initialOriginCity,
+    this.initialDestinationCity,
+    this.initialOriginLat,
+    this.initialOriginLng,
+    this.initialDestinationLat,
+    this.initialDestinationLng,
+    this.initialDate,
+    this.initialSeats,
+    this.initialRadiusKm,
+  });
 
   /// Static helper to navigate cleanly from any context
-  static Future<void> show(BuildContext context) {
-    return Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const SearchBookingRiderPage()));
+  static Future<void> show(
+    BuildContext context, {
+    String? originCity,
+    String? destinationCity,
+    double? originLat,
+    double? originLng,
+    double? destinationLat,
+    double? destinationLng,
+    DateTime? date,
+    int? seats,
+    int? radiusKm,
+  }) {
+    return Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SearchBookingRiderPage(
+          initialOriginCity: originCity,
+          initialDestinationCity: destinationCity,
+          initialOriginLat: originLat,
+          initialOriginLng: originLng,
+          initialDestinationLat: destinationLat,
+          initialDestinationLng: destinationLng,
+          initialDate: date,
+          initialSeats: seats,
+          initialRadiusKm: radiusKm,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final repo = SearchBookingRiderRepositoryImpl();
+    final hasInitialQuery =
+        (initialOriginCity != null && initialOriginCity!.isNotEmpty) ||
+        (initialDestinationCity != null && initialDestinationCity!.isNotEmpty);
 
     return BlocProvider<SearchBookingRiderBloc>(
-      create: (_) => SearchBookingRiderBloc(
-        getBookings: GetRiderBookingsUseCase(repo),
-        searchRides: SearchRiderRidesUseCase(repo),
-        bookSeat: BookRiderSeatUseCase(repo),
-        cancelBooking: CancelRiderBookingUseCase(repo),
-      )..add(const SearchBookingRiderStarted()),
-      child: const _SearchBookingRiderView(),
+      create: (_) {
+        final bloc = SearchBookingRiderBloc(
+          getBookings: GetRiderBookingsUseCase(repo),
+          searchRides: SearchRiderRidesUseCase(repo),
+          bookSeat: BookRiderSeatUseCase(repo),
+          cancelBooking: CancelRiderBookingUseCase(repo),
+        );
+        bloc.add(const SearchBookingRiderStarted());
+        if (hasInitialQuery) {
+          bloc.add(const SearchBookingRiderTabChanged(1));
+          bloc.add(
+            SearchBookingRiderSearchRequested(
+              from: initialOriginCity ?? '',
+              to: initialDestinationCity ?? '',
+              originLat: initialOriginLat,
+              originLng: initialOriginLng,
+              destinationLat: initialDestinationLat,
+              destinationLng: initialDestinationLng,
+              date: initialDate ?? DateTime.now(),
+              seats: initialSeats ?? 1,
+              radiusKm: initialRadiusKm ?? 30,
+            ),
+          );
+        }
+        return bloc;
+      },
+      child: _SearchBookingRiderView(
+        initialOrigin: initialOriginCity,
+        initialDestination: initialDestinationCity,
+        initialOriginLat: initialOriginLat,
+        initialOriginLng: initialOriginLng,
+        initialDestinationLat: initialDestinationLat,
+        initialDestinationLng: initialDestinationLng,
+        initialDate: initialDate,
+        initialSeats: initialSeats,
+        initialRadiusKm: initialRadiusKm,
+      ),
     );
   }
 }
 
 class _SearchBookingRiderView extends StatefulWidget {
-  const _SearchBookingRiderView();
+  final String? initialOrigin;
+  final String? initialDestination;
+  final double? initialOriginLat;
+  final double? initialOriginLng;
+  final double? initialDestinationLat;
+  final double? initialDestinationLng;
+  final DateTime? initialDate;
+  final int? initialSeats;
+  final int? initialRadiusKm;
+
+  const _SearchBookingRiderView({
+    this.initialOrigin,
+    this.initialDestination,
+    this.initialOriginLat,
+    this.initialOriginLng,
+    this.initialDestinationLat,
+    this.initialDestinationLng,
+    this.initialDate,
+    this.initialSeats,
+    this.initialRadiusKm,
+  });
 
   @override
   State<_SearchBookingRiderView> createState() =>
@@ -48,14 +148,39 @@ class _SearchBookingRiderView extends StatefulWidget {
 }
 
 class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
-  final TextEditingController _fromCtrl = TextEditingController(
-    text: 'Hyderabad',
-  );
-  final TextEditingController _toCtrl = TextEditingController(
-    text: 'Vijayawada',
-  );
-  DateTime _selectedDate = DateTime.now().add(const Duration(hours: 4));
+  late final TextEditingController _fromCtrl;
+  late final TextEditingController _toCtrl;
+  late DateTime _selectedDate;
+  late int _seats;
+  double? _originLat;
+  double? _originLng;
+  double? _destinationLat;
+  double? _destinationLng;
+  int _radiusKm = 30;
   int _bookingSubTab = 0; // 0: Active, 1: Past
+
+  @override
+  void initState() {
+    super.initState();
+    _fromCtrl = TextEditingController(
+      text: widget.initialOrigin?.isNotEmpty == true
+          ? widget.initialOrigin!
+          : '',
+    );
+    _toCtrl = TextEditingController(
+      text: widget.initialDestination?.isNotEmpty == true
+          ? widget.initialDestination!
+          : '',
+    );
+    _originLat = widget.initialOriginLat;
+    _originLng = widget.initialOriginLng;
+    _destinationLat = widget.initialDestinationLat;
+    _destinationLng = widget.initialDestinationLng;
+    _radiusKm = widget.initialRadiusKm ?? 30;
+    _selectedDate =
+        widget.initialDate ?? DateTime.now().add(const Duration(hours: 4));
+    _seats = widget.initialSeats ?? 1;
+  }
 
   @override
   void dispose() {
@@ -102,15 +227,44 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
   }
 
   void _onSearch(BuildContext context) {
-    if (_fromCtrl.text.trim().isEmpty || _toCtrl.text.trim().isEmpty) {
+    final fromText = _fromCtrl.text.trim();
+    final toText = _toCtrl.text.trim();
+    if (fromText.isEmpty || toText.isEmpty) {
       _snack(context, 'Please enter pickup and dropoff points', isError: true);
       return;
     }
+
+    final originCoords = CarpoolDistanceCalculator.resolveCoordinates(
+      fromText,
+      preferredLat: _originLat,
+      preferredLng: _originLng,
+      defaultLat: 17.7051,
+      defaultLng: 83.1491,
+    );
+    final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
+      toText,
+      preferredLat: _destinationLat,
+      preferredLng: _destinationLng,
+      defaultLat: 16.3067,
+      defaultLng: 80.4365,
+    );
+
+    _originLat = originCoords.lat;
+    _originLng = originCoords.lng;
+    _destinationLat = destCoords.lat;
+    _destinationLng = destCoords.lng;
+
     context.read<SearchBookingRiderBloc>().add(
       SearchBookingRiderSearchRequested(
-        from: _fromCtrl.text.trim(),
-        to: _toCtrl.text.trim(),
+        from: fromText,
+        to: toText,
+        originLat: originCoords.lat,
+        originLng: originCoords.lng,
+        destinationLat: destCoords.lat,
+        destinationLng: destCoords.lng,
         date: _selectedDate,
+        seats: _seats,
+        radiusKm: _radiusKm,
       ),
     );
   }
@@ -741,11 +895,38 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
               // Origin Input
               TextField(
                 controller: _fromCtrl,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(
+                onChanged: (val) {
+                  final c = CarpoolDistanceCalculator.resolveCoordinates(val);
+                  _originLat = c.lat;
+                  _originLng = c.lng;
+                },
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(
                     Icons.my_location_rounded,
                     color: Color(0xFF10B981),
                     size: 20,
+                  ),
+                  suffixIcon: IconButton(
+                    icon: const Icon(
+                      Icons.search_rounded,
+                      size: 20,
+                      color: Color(0xFF5D24F7),
+                    ),
+                    onPressed: () async {
+                      final res = await carpoolSelectLocation(
+                        context,
+                        title: 'Search Pickup Location',
+                        initialValue: _fromCtrl.text,
+                        isPickup: true,
+                      );
+                      if (res != null && res.name.trim().isNotEmpty) {
+                        setState(() {
+                          _fromCtrl.text = res.name.trim();
+                          _originLat = res.lat;
+                          _originLng = res.lng;
+                        });
+                      }
+                    },
                   ),
                   hintText: 'Enter pickup city/location',
                   border: InputBorder.none,
@@ -755,11 +936,38 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
               // Destination Input
               TextField(
                 controller: _toCtrl,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(
+                onChanged: (val) {
+                  final c = CarpoolDistanceCalculator.resolveCoordinates(val);
+                  _destinationLat = c.lat;
+                  _destinationLng = c.lng;
+                },
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(
                     Icons.location_on_rounded,
                     color: Color(0xFFEF4444),
                     size: 20,
+                  ),
+                  suffixIcon: IconButton(
+                    icon: const Icon(
+                      Icons.search_rounded,
+                      size: 20,
+                      color: Color(0xFF5D24F7),
+                    ),
+                    onPressed: () async {
+                      final res = await carpoolSelectLocation(
+                        context,
+                        title: 'Search Dropoff Location',
+                        initialValue: _toCtrl.text,
+                        isPickup: false,
+                      );
+                      if (res != null && res.name.trim().isNotEmpty) {
+                        setState(() {
+                          _toCtrl.text = res.name.trim();
+                          _destinationLat = res.lat;
+                          _destinationLng = res.lng;
+                        });
+                      }
+                    },
                   ),
                   hintText: 'Enter dropoff city/location',
                   border: InputBorder.none,
@@ -767,10 +975,11 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
               ),
               const Divider(color: Color(0xFFEDE8FF), height: 1),
               const SizedBox(height: 12),
-              // Date picker button & Search Button
+              // Date picker button, Seats selector & Search Button
               Row(
                 children: [
                   Expanded(
+                    flex: 5,
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFFEDE8FF)),
@@ -781,13 +990,13 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
                       ),
                       icon: const Icon(
                         Icons.calendar_today_rounded,
-                        size: 16,
+                        size: 15,
                         color: Color(0xFF5D24F7),
                       ),
                       label: Text(
                         CarpoolFormatters.date(_selectedDate),
                         style: const TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF140D43),
                         ),
@@ -795,7 +1004,52 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
                       onPressed: _pickDate,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
+                  // Seats selector
+                  Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F5FE),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFEDE8FF)),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.airline_seat_recline_normal_rounded,
+                          size: 16,
+                          color: Color(0xFF5D24F7),
+                        ),
+                        const SizedBox(width: 4),
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _seats,
+                            dropdownColor: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF140D43),
+                            ),
+                            items: [1, 2, 3, 4, 5, 6].map((count) {
+                              return DropdownMenuItem<int>(
+                                value: count,
+                                child: Text('$count'),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _seats = val);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF5D24F7),
@@ -803,7 +1057,7 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
+                        horizontal: 16,
                         vertical: 12,
                       ),
                     ),
@@ -877,6 +1131,18 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
               padding: const EdgeInsets.only(bottom: 14),
               child: _SearchResultCard(
                 ride: ride,
+                onTap: () async {
+                  final booked = await SearchBookingDetailsPage.show(
+                    context,
+                    rideId: ride.id,
+                    initialRide: ride,
+                  );
+                  if (booked == true && context.mounted) {
+                    context.read<SearchBookingRiderBloc>().add(
+                      const SearchBookingRiderStarted(),
+                    );
+                  }
+                },
                 onBook: () => _showBookSeatDialog(context, ride),
               ),
             ),
@@ -1184,13 +1450,17 @@ class _RiderBookingCard extends StatelessWidget {
 class _SearchResultCard extends StatelessWidget {
   final CarpoolRideEntity ride;
   final VoidCallback onBook;
+  final VoidCallback? onTap;
 
-  const _SearchResultCard({required this.ride, required this.onBook});
+  const _SearchResultCard({
+    required this.ride,
+    required this.onBook,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -1203,9 +1473,16 @@ class _SearchResultCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
           // Driver info & Price
           Row(
             children: [
@@ -1281,7 +1558,52 @@ class _SearchResultCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+
+          // Route row: From → To (e.g. Connaught Place, New Delhi → Sindhi Camp, Jaipur)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9F8FE),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFEDE8FF)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.trip_origin_rounded,
+                  size: 13,
+                  color: Color(0xFF10B981),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${ride.from} → ${ride.to}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF140D43),
+                    ),
+                  ),
+                ),
+                if (ride.originCity != null || ride.destinationCity != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '(${ride.displayFromCity} to ${ride.displayToCity})',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B658C),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
 
           // Departure time & Seats left
           Row(
@@ -1364,6 +1686,9 @@ class _SearchResultCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+          ),
+        ),
       ),
     );
   }

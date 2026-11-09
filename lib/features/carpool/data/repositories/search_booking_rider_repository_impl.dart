@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/storage/auth_local_storage.dart';
+import '../../../../core/utils/api_logger.dart';
 import '../../../../core/utils/carpool_distance_calculator.dart';
 import '../../domain/entities/carpool_entities.dart';
 import '../../domain/entities/rider_booking_entity.dart';
@@ -16,46 +17,7 @@ class SearchBookingRiderRepositoryImpl implements SearchBookingRiderRepository {
   factory SearchBookingRiderRepositoryImpl() => _instance;
 
   SearchBookingRiderRepositoryImpl._internal() {
-    final now = DateTime.now();
-    // Pre-populate with realistic rider bookings
-    _bookings = [
-      RiderBookingModel(
-        id: 'bk-101',
-        rideId: 'ride-901',
-        driverName: 'Ramesh Sharma',
-        driverPhone: '+91 98451 23456',
-        driverRating: 4.8,
-        vehicle: 'Maruti Suzuki Dzire',
-        vehicleNumber: 'TS 09 AB 1234',
-        from: 'Hitech City, Hyderabad',
-        to: 'Benz Circle, Vijayawada',
-        departure: now.add(const Duration(days: 1, hours: 2)),
-        seatsBooked: 2,
-        pricePerSeat: 350,
-        totalAmount: 700,
-        status: RiderBookingStatus.confirmed,
-        bookingDate: now.subtract(const Duration(hours: 4)),
-        otpCode: '5821',
-      ),
-      RiderBookingModel(
-        id: 'bk-102',
-        rideId: 'ride-902',
-        driverName: 'Kiran Varma',
-        driverPhone: '+91 97012 34567',
-        driverRating: 4.9,
-        vehicle: 'Honda City',
-        vehicleNumber: 'AP 16 CD 5678',
-        from: 'Gachibowli, Hyderabad',
-        to: 'MG Road, Bangalore',
-        departure: now.subtract(const Duration(days: 3)),
-        seatsBooked: 1,
-        pricePerSeat: 650,
-        totalAmount: 650,
-        status: RiderBookingStatus.completed,
-        bookingDate: now.subtract(const Duration(days: 4)),
-        otpCode: '8910',
-      ),
-    ];
+    _bookings = [];
   }
 
   late final List<RiderBookingEntity> _bookings;
@@ -113,75 +75,170 @@ class SearchBookingRiderRepositoryImpl implements SearchBookingRiderRepository {
     return [..._bookings]..sort((a, b) => b.departure.compareTo(a.departure));
   }
 
+  static String _extractCleanCity(String location) {
+    var raw = location.trim();
+    if (raw.isEmpty) return '';
+
+    if (raw.startsWith('{')) {
+      final cityMatch = RegExp(
+        r'(?:city|district)\s*[:=]\s*([^,}]+)',
+        caseSensitive: false,
+      ).firstMatch(raw);
+      if (cityMatch != null) {
+        return cityMatch.group(1)?.trim() ?? raw;
+      }
+      final addrMatch = RegExp(
+        r'(?:address|place|name)\s*[:=]\s*([^,}]+)',
+        caseSensitive: false,
+      ).firstMatch(raw);
+      if (addrMatch != null) {
+        raw = addrMatch.group(1)?.trim() ?? raw;
+      }
+    }
+
+    raw = raw.replaceAll(RegExp(r'''[{}"]'''), '').trim();
+    if (raw.contains(',')) {
+      final parts = raw
+          .split(',')
+          .map((p) => p.trim())
+          .where((p) => p.isNotEmpty)
+          .toList();
+      if (parts.length >= 2) {
+        final last = parts.last;
+        if (last.toLowerCase().contains('delhi')) return 'Delhi';
+        return last;
+      }
+    }
+    if (raw.toLowerCase().contains('delhi')) return 'Delhi';
+    return raw;
+  }
+
   @override
   Future<List<CarpoolRideEntity>> searchRides({
     required String from,
     required String to,
+    double? originLat,
+    double? originLng,
+    double? destinationLat,
+    double? destinationLng,
     DateTime? date,
+    int? seats,
+    int? radiusKm,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    final resolvedDate = date ?? DateTime.now().add(const Duration(hours: 4));
+    final originCoords = CarpoolDistanceCalculator.resolveCoordinates(
+      from,
+      preferredLat: originLat,
+      preferredLng: originLng,
+      defaultLat: 17.3850,
+      defaultLng: 78.4867,
+    );
+    final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
+      to,
+      preferredLat: destinationLat,
+      preferredLng: destinationLng,
+      defaultLat: 16.3067,
+      defaultLng: 80.4365,
+    );
 
-    // Dynamic rides tailored to the rider's search query
-    final dist = CarpoolDistanceCalculator.calculateDistanceKm(from, to);
-    final basePrice = dist > 0 ? (dist * 3.5).round() : 350;
+    final resolvedOriginLat = originCoords.lat;
+    final resolvedOriginLng = originCoords.lng;
+    final resolvedDestLat = destCoords.lat;
+    final resolvedDestLng = destCoords.lng;
 
-    return [
-      CarpoolRideModel(
-        id: 'sr-101',
-        driverName: 'Suresh Rao',
-        driverRating: 4.9,
-        driverTrips: 84,
-        vehicle: 'Hyundai Creta',
-        from: from.isNotEmpty ? from : 'Connaught Place, New Delhi',
-        to: to.isNotEmpty ? to : 'Sindhi Camp, Jaipur',
-        departure: resolvedDate,
-        seats: 3,
-        pricePerSeat: basePrice > 0 ? basePrice : 450,
-        distanceKm: dist > 0 ? dist : 268,
-        status: CarpoolRideStatus.upcoming,
-        rideType: CarpoolRideType.normal,
-        totalBookings: 1,
-        vehicleModel: 'Hyundai Creta',
-        vehicleNumber: 'DL 02 CD 4567',
-      ),
-      CarpoolRideModel(
-        id: 'sr-102',
-        driverName: 'Anil Kumar',
-        driverRating: 4.7,
-        driverTrips: 112,
-        vehicle: 'Honda City',
-        from: from.isNotEmpty ? from : 'Connaught Place, New Delhi',
-        to: to.isNotEmpty ? to : 'Sindhi Camp, Jaipur',
-        departure: resolvedDate.add(const Duration(hours: 2)),
-        seats: 2,
-        pricePerSeat: basePrice > 0 ? (basePrice * 0.95).round() : 420,
-        distanceKm: dist > 0 ? dist : 268,
-        status: CarpoolRideStatus.upcoming,
-        rideType: CarpoolRideType.premium,
-        totalBookings: 2,
-        vehicleModel: 'Honda City',
-        vehicleNumber: 'DL 01 AB 9876',
-      ),
-      CarpoolRideModel(
-        id: 'sr-103',
-        driverName: 'Vikram Joshi',
-        driverRating: 4.8,
-        driverTrips: 45,
-        vehicle: 'Maruti Suzuki Brezza',
-        from: from.isNotEmpty ? from : 'Connaught Place, New Delhi',
-        to: to.isNotEmpty ? to : 'Sindhi Camp, Jaipur',
-        departure: resolvedDate.add(const Duration(hours: 4)),
-        seats: 4,
-        pricePerSeat: basePrice > 0 ? (basePrice * 1.05).round() : 480,
-        distanceKm: dist > 0 ? dist : 268,
-        status: CarpoolRideStatus.upcoming,
-        rideType: CarpoolRideType.normal,
-        totalBookings: 0,
-        vehicleModel: 'Brezza',
-        vehicleNumber: 'HR 26 DQ 1122',
-      ),
-    ];
+    final resolvedDate = date ?? DateTime.now();
+    final dateStr =
+        '${resolvedDate.year.toString().padLeft(4, '0')}-${resolvedDate.month.toString().padLeft(2, '0')}-${resolvedDate.day.toString().padLeft(2, '0')}';
+    final passengersCount = (seats != null && seats > 0) ? seats : 2;
+    final resolvedRadius = radiusKm ?? 30;
+
+    final targetUrl = ApiEndpoints.searchRides;
+    final uri = Uri.parse(targetUrl);
+
+    final requestBody = {
+      'originLat': resolvedOriginLat,
+      'originLng': resolvedOriginLng,
+      'destinationLat': resolvedDestLat,
+      'destinationLng': resolvedDestLng,
+      'date': dateStr,
+      'passengers': passengersCount,
+      'radiusKm': resolvedRadius,
+    };
+    final payloadJson = jsonEncode(requestBody);
+
+    try {
+      final storage = AuthLocalStorage();
+      await storage.init();
+      final token = await storage.getAccessTokenAsync();
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      };
+
+      ApiLogger.logRequest(
+        title: 'SEARCH_CARPOOL_RIDES',
+        url: targetUrl,
+        method: 'POST',
+        body: payloadJson,
+        headers: headers,
+      );
+
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
+      final request = await client
+          .postUrl(uri)
+          .timeout(const Duration(seconds: 10));
+      request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      if (token != null && token.isNotEmpty) {
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      }
+      request.write(payloadJson);
+
+      final response = await request.close().timeout(
+        const Duration(seconds: 10),
+      );
+      final responseBody = await response.transform(utf8.decoder).join();
+
+      ApiLogger.logResponse(
+        title: 'SEARCH_CARPOOL_RIDES',
+        url: targetUrl,
+        statusCode: response.statusCode,
+        responseBody: responseBody,
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(responseBody);
+        List<dynamic> listJson = [];
+        if (decoded is Map<String, dynamic>) {
+          if (decoded['data'] is Map<String, dynamic> &&
+              decoded['data']['rides'] is List) {
+            listJson = decoded['data']['rides'] as List;
+          } else if (decoded['data'] is List) {
+            listJson = decoded['data'] as List;
+          } else if (decoded['rides'] is List) {
+            listJson = decoded['rides'] as List;
+          }
+        } else if (decoded is List) {
+          listJson = decoded;
+        }
+
+        final results = listJson
+            .whereType<Map<String, dynamic>>()
+            .map((j) => CarpoolRideModel.fromJson(j))
+            .toList();
+        return results;
+      }
+    } catch (e) {
+      ApiLogger.logError(
+        title: 'SEARCH_CARPOOL_RIDES',
+        url: targetUrl,
+        error: e,
+      );
+    }
+
+    return [];
   }
 
   @override

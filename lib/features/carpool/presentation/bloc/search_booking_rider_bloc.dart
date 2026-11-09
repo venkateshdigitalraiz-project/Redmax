@@ -25,16 +25,38 @@ class SearchBookingRiderTabChanged extends SearchBookingRiderEvent {
 class SearchBookingRiderSearchRequested extends SearchBookingRiderEvent {
   final String from;
   final String to;
+  final double? originLat;
+  final double? originLng;
+  final double? destinationLat;
+  final double? destinationLng;
   final DateTime? date;
+  final int seats;
+  final int radiusKm;
 
   const SearchBookingRiderSearchRequested({
     required this.from,
     required this.to,
+    this.originLat,
+    this.originLng,
+    this.destinationLat,
+    this.destinationLng,
     this.date,
+    this.seats = 1,
+    this.radiusKm = 30,
   });
 
   @override
-  List<Object?> get props => [from, to, date];
+  List<Object?> get props => [
+    from,
+    to,
+    originLat,
+    originLng,
+    destinationLat,
+    destinationLng,
+    date,
+    seats,
+    radiusKm,
+  ];
 }
 
 class SearchBookingRiderBookSeatRequested extends SearchBookingRiderEvent {
@@ -65,6 +87,7 @@ class SearchBookingRiderState extends Equatable {
   final String from;
   final String to;
   final DateTime? date;
+  final int seats;
   final String? message;
 
   const SearchBookingRiderState({
@@ -72,19 +95,18 @@ class SearchBookingRiderState extends Equatable {
     this.tabIndex = 0,
     this.bookings = const [],
     this.searchResults = const [],
-    this.from = 'Hyderabad',
-    this.to = 'Vijayawada',
+    this.from = '',
+    this.to = '',
     this.date,
+    this.seats = 1,
     this.message,
   });
 
-  List<RiderBookingEntity> get activeBookings => bookings
-      .where((b) => b.status == RiderBookingStatus.confirmed)
-      .toList();
+  List<RiderBookingEntity> get activeBookings =>
+      bookings.where((b) => b.status == RiderBookingStatus.confirmed).toList();
 
-  List<RiderBookingEntity> get pastBookings => bookings
-      .where((b) => b.status != RiderBookingStatus.confirmed)
-      .toList();
+  List<RiderBookingEntity> get pastBookings =>
+      bookings.where((b) => b.status != RiderBookingStatus.confirmed).toList();
 
   int get activeBookingsCount => activeBookings.length;
   int get pastBookingsCount => pastBookings.length;
@@ -97,6 +119,7 @@ class SearchBookingRiderState extends Equatable {
     String? from,
     String? to,
     DateTime? date,
+    int? seats,
     String? message,
   }) {
     return SearchBookingRiderState(
@@ -107,21 +130,23 @@ class SearchBookingRiderState extends Equatable {
       from: from ?? this.from,
       to: to ?? this.to,
       date: date ?? this.date,
+      seats: seats ?? this.seats,
       message: message,
     );
   }
 
   @override
   List<Object?> get props => [
-        status,
-        tabIndex,
-        bookings,
-        searchResults,
-        from,
-        to,
-        date,
-        message,
-      ];
+    status,
+    tabIndex,
+    bookings,
+    searchResults,
+    from,
+    to,
+    date,
+    seats,
+    message,
+  ];
 }
 
 class SearchBookingRiderBloc
@@ -153,21 +178,29 @@ class SearchBookingRiderBloc
     emit(state.copyWith(status: CarpoolStatus.loading));
     try {
       final list = await getBookings();
-      final initialResults = await searchRides(
-        from: state.from,
-        to: state.to,
-        date: state.date,
+      List<CarpoolRideEntity> initialResults = [];
+      if (state.from.trim().isNotEmpty && state.to.trim().isNotEmpty) {
+        initialResults = await searchRides(
+          from: state.from,
+          to: state.to,
+          date: state.date,
+          seats: state.seats,
+        );
+      }
+      emit(
+        state.copyWith(
+          status: CarpoolStatus.success,
+          bookings: list,
+          searchResults: initialResults,
+        ),
       );
-      emit(state.copyWith(
-        status: CarpoolStatus.success,
-        bookings: list,
-        searchResults: initialResults,
-      ));
     } catch (e) {
-      emit(state.copyWith(
-        status: CarpoolStatus.failure,
-        message: 'Failed to load bookings: $e',
-      ));
+      emit(
+        state.copyWith(
+          status: CarpoolStatus.failure,
+          message: 'Failed to load bookings: $e',
+        ),
+      );
     }
   }
 
@@ -175,27 +208,37 @@ class SearchBookingRiderBloc
     SearchBookingRiderSearchRequested event,
     Emitter<SearchBookingRiderState> emit,
   ) async {
-    emit(state.copyWith(
-      status: CarpoolStatus.loading,
-      from: event.from,
-      to: event.to,
-      date: event.date,
-    ));
+    emit(
+      state.copyWith(
+        status: CarpoolStatus.loading,
+        from: event.from,
+        to: event.to,
+        date: event.date,
+        seats: event.seats,
+      ),
+    );
     try {
       final results = await searchRides(
         from: event.from,
         to: event.to,
+        originLat: event.originLat,
+        originLng: event.originLng,
+        destinationLat: event.destinationLat,
+        destinationLng: event.destinationLng,
         date: event.date,
+        seats: event.seats,
+        radiusKm: event.radiusKm,
       );
-      emit(state.copyWith(
-        status: CarpoolStatus.success,
-        searchResults: results,
-      ));
+      emit(
+        state.copyWith(status: CarpoolStatus.success, searchResults: results),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        status: CarpoolStatus.failure,
-        message: 'Search failed: $e',
-      ));
+      emit(
+        state.copyWith(
+          status: CarpoolStatus.failure,
+          message: 'Search failed: $e',
+        ),
+      );
     }
   }
 
@@ -205,22 +248,23 @@ class SearchBookingRiderBloc
   ) async {
     emit(state.copyWith(status: CarpoolStatus.loading));
     try {
-      final newBooking = await bookSeat(
-        ride: event.ride,
-        seats: event.seats,
-      );
+      final newBooking = await bookSeat(ride: event.ride, seats: event.seats);
       final updatedBookings = [newBooking, ...state.bookings];
-      emit(state.copyWith(
-        status: CarpoolStatus.success,
-        bookings: updatedBookings,
-        tabIndex: 0, // Switch to My Bookings tab
-        message: 'Ride booked successfully with ${event.ride.driverName}!',
-      ));
+      emit(
+        state.copyWith(
+          status: CarpoolStatus.success,
+          bookings: updatedBookings,
+          tabIndex: 0, // Switch to My Bookings tab
+          message: 'Ride booked successfully with ${event.ride.driverName}!',
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        status: CarpoolStatus.failure,
-        message: 'Booking failed: $e',
-      ));
+      emit(
+        state.copyWith(
+          status: CarpoolStatus.failure,
+          message: 'Booking failed: $e',
+        ),
+      );
     }
   }
 
@@ -232,17 +276,20 @@ class SearchBookingRiderBloc
     try {
       await cancelBooking(event.bookingId);
       final list = await getBookings();
-      emit(state.copyWith(
-        status: CarpoolStatus.success,
-        bookings: list,
-        message: 'Booking cancelled successfully.',
-      ));
+      emit(
+        state.copyWith(
+          status: CarpoolStatus.success,
+          bookings: list,
+          message: 'Booking cancelled successfully.',
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        status: CarpoolStatus.failure,
-        message: 'Cancel failed: $e',
-      ));
+      emit(
+        state.copyWith(
+          status: CarpoolStatus.failure,
+          message: 'Cancel failed: $e',
+        ),
+      );
     }
   }
 }
-

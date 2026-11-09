@@ -99,8 +99,8 @@ class _PublishRideViewState extends State<_PublishRideView> {
   ) async {
     if (_isNavigating) return;
 
-    final from = _hasSelectedRoute ? s.from.trim() : '';
-    final to = _hasSelectedRoute ? s.to.trim() : '';
+    final from = s.from.trim();
+    final to = s.to.trim();
 
     if (from.isEmpty || to.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -134,23 +134,43 @@ class _PublishRideViewState extends State<_PublishRideView> {
 
     setState(() => _isNavigating = true);
 
-    // Resolve coordinates for pricing calculate API
-    final fromGeo = CarpoolDistanceCalculator.findGeo(from);
-    final toGeo = CarpoolDistanceCalculator.findGeo(to);
+    // Resolve coordinates using unified resolveCoordinates helper
+    final originCoords = CarpoolDistanceCalculator.resolveCoordinates(
+      from,
+      preferredLat: s.fromLat,
+      preferredLng: s.fromLng,
+      defaultLat: 17.3850,
+      defaultLng: 78.4867,
+    );
+    final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
+      to,
+      preferredLat: s.toLat,
+      preferredLng: s.toLng,
+      defaultLat: 16.5062,
+      defaultLng: 80.6480,
+    );
 
-    final oLat =
-        (s.fromLat != 0.0 ? s.fromLat : null) ?? fromGeo?.lat ?? 28.6139;
-    final oLng =
-        (s.fromLng != 0.0 ? s.fromLng : null) ?? fromGeo?.lng ?? 77.2090;
-    final dLat = (s.toLat != 0.0 ? s.toLat : null) ?? toGeo?.lat ?? 26.9124;
-    final dLng = (s.toLng != 0.0 ? s.toLng : null) ?? toGeo?.lng ?? 75.7873;
+    bloc.add(
+      CarpoolOfferFromChanged(
+        from,
+        lat: originCoords.lat,
+        lng: originCoords.lng,
+      ),
+    );
+    bloc.add(
+      CarpoolOfferToChanged(
+        to,
+        lat: destCoords.lat,
+        lng: destCoords.lng,
+      ),
+    );
 
     bloc.add(
       CarpoolOfferCalculatePricing(
-        originLat: oLat,
-        originLng: oLng,
-        destinationLat: dLat,
-        destinationLng: dLng,
+        originLat: originCoords.lat,
+        originLng: originCoords.lng,
+        destinationLat: destCoords.lat,
+        destinationLng: destCoords.lng,
       ),
     );
 

@@ -531,17 +531,19 @@ class CarpoolOfferRideBloc
     CarpoolOfferFromChanged event,
     Emitter<CarpoolOfferRideState> emit,
   ) {
-    final geo = (event.lat != null && event.lng != null)
-        ? null
-        : CarpoolDistanceCalculator.findGeo(event.value);
-    final lat = event.lat ?? geo?.lat ?? state.fromLat;
-    final lng = event.lng ?? geo?.lng ?? state.fromLng;
+    final coords = CarpoolDistanceCalculator.resolveCoordinates(
+      event.value,
+      preferredLat: event.lat,
+      preferredLng: event.lng,
+      defaultLat: 17.3850,
+      defaultLng: 78.4867,
+    );
 
     emit(
       state.copyWith(
         from: event.value,
-        fromLat: lat,
-        fromLng: lng,
+        fromLat: coords.lat,
+        fromLng: coords.lng,
         stopovers: const [],
         selectedStopovers: const {},
         status: CarpoolStatus.initial,
@@ -554,17 +556,19 @@ class CarpoolOfferRideBloc
     CarpoolOfferToChanged event,
     Emitter<CarpoolOfferRideState> emit,
   ) {
-    final geo = (event.lat != null && event.lng != null)
-        ? null
-        : CarpoolDistanceCalculator.findGeo(event.value);
-    final lat = event.lat ?? geo?.lat ?? state.toLat;
-    final lng = event.lng ?? geo?.lng ?? state.toLng;
+    final coords = CarpoolDistanceCalculator.resolveCoordinates(
+      event.value,
+      preferredLat: event.lat,
+      preferredLng: event.lng,
+      defaultLat: 16.5062,
+      defaultLng: 80.6480,
+    );
 
     emit(
       state.copyWith(
         to: event.value,
-        toLat: lat,
-        toLng: lng,
+        toLat: coords.lat,
+        toLng: coords.lng,
         stopovers: const [],
         selectedStopovers: const {},
         status: CarpoolStatus.initial,

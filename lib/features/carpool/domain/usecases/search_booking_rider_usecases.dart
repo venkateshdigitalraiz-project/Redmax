@@ -16,9 +16,25 @@ class SearchRiderRidesUseCase {
   Future<List<CarpoolRideEntity>> call({
     required String from,
     required String to,
+    double? originLat,
+    double? originLng,
+    double? destinationLat,
+    double? destinationLng,
     DateTime? date,
+    int? seats,
+    int? radiusKm,
   }) =>
-      repository.searchRides(from: from, to: to, date: date);
+      repository.searchRides(
+        from: from,
+        to: to,
+        originLat: originLat,
+        originLng: originLng,
+        destinationLat: destinationLat,
+        destinationLng: destinationLng,
+        date: date,
+        seats: seats,
+        radiusKm: radiusKm,
+      );
 }
 
 class BookRiderSeatUseCase {

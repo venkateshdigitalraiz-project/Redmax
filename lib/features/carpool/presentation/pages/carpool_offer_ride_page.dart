@@ -11,6 +11,7 @@ import '../bloc/carpool_home_bloc.dart';
 import '../bloc/carpool_nav_cubit.dart';
 import '../bloc/carpool_offer_ride_bloc.dart';
 import '../widgets/carpool_route_selector_card.dart';
+import 'search_booking_rider_page.dart';
 
 /// Screen "Offer a Ride" matching the exact design screenshot:
 /// 1. Top bar with clean back button, "Offer a Ride" title, and tune icon.
@@ -110,6 +111,34 @@ Future<String?> carpoolAskText(
 
 class _OfferRideView extends StatelessWidget {
   const _OfferRideView();
+
+  String _extractCity(String location) {
+    var raw = location.trim();
+    if (raw.isEmpty) return '';
+
+    final geo = CarpoolDistanceCalculator.findGeo(raw);
+    if (geo != null) return geo.name;
+
+    final cityMatch = RegExp(
+      r'(?:city|district)\s*[:=]\s*([^,}]+)',
+      caseSensitive: false,
+    ).firstMatch(raw);
+    if (cityMatch != null) {
+      return cityMatch.group(1)?.replaceAll(RegExp(r'''[{}"]'''), '').trim() ?? raw;
+    }
+    raw = raw
+        .replaceAll(RegExp(r',?\s*(?:lat|lng|latitude|longitude)\s*[:=][^,}]+', caseSensitive: false), '')
+        .replaceAll(RegExp(r'^(?:address|place|name)\s*[:=]\s*', caseSensitive: false), '')
+        .replaceAll(RegExp(r'''[{}"]'''), '')
+        .trim();
+    if (raw.contains(',')) {
+      final parts = raw.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+      if (parts.isNotEmpty) {
+        return parts.first;
+      }
+    }
+    return raw;
+  }
 
   Future<void> _pickDate(BuildContext context, CarpoolOfferRideState s) async {
     final now = DateTime.now();
@@ -779,92 +808,56 @@ class _OfferRideView extends StatelessWidget {
                                     return;
                                   }
 
-                                  // 1. Calculate distance and price (₹10/km)
-                                  final dist =
-                                      CarpoolDistanceCalculator.calculateDistanceKm(
-                                        s.from,
-                                        s.to,
-                                      );
-                                  final totalFare = dist * 10;
-                                  final pricePerSeat =
-                                      (totalFare / (s.seats > 0 ? s.seats : 1))
-                                          .round();
+                                  final originCity = _extractCity(s.from);
+                                  final destinationCity = _extractCity(s.to);
 
-                                  // 2. Temporarily save ride and popular route in memory datasource
-                                  final mockDs = CarpoolMockDataSource();
-                                  mockDs.addPopularRoute(
+                                  final originCoords =
+                                      CarpoolDistanceCalculator.resolveCoordinates(
                                     s.from,
+                                    preferredLat: s.fromLat,
+                                    preferredLng: s.fromLng,
+                                    defaultLat: 17.3850,
+                                    defaultLng: 78.4867,
+                                  );
+                                  final destCoords =
+                                      CarpoolDistanceCalculator.resolveCoordinates(
                                     s.to,
-                                    pricePerSeat,
-                                    fromLat: s.fromLat,
-                                    fromLng: s.fromLng,
-                                    toLat: s.toLat,
-                                    toLng: s.toLng,
+                                    preferredLat: s.toLat,
+                                    preferredLng: s.toLng,
+                                    defaultLat: 16.5062,
+                                    defaultLng: 80.6480,
                                   );
-                                  mockDs.publishRide(
-                                    CarpoolPublishRideParams(
-                                      from: s.from,
-                                      to: s.to,
-                                      departure: s.departure,
-                                      seats: s.seats,
-                                      //    pricePerSeat: pricePerSeat,
-                                      rideType: s.rideType,
+
+                                  bloc.add(
+                                    CarpoolOfferFromChanged(
+                                      s.from,
+                                      lat: originCoords.lat,
+                                      lng: originCoords.lng,
+                                    ),
+                                  );
+                                  bloc.add(
+                                    CarpoolOfferToChanged(
+                                      s.to,
+                                      lat: destCoords.lat,
+                                      lng: destCoords.lng,
                                     ),
                                   );
 
-                                  // 3. Immediately update CarpoolHomeBloc so Popular Routes on Home page updates
-                                  try {
-                                    context.read<CarpoolHomeBloc>().add(
-                                      CarpoolHomeRouteAdded(
-                                        from: s.from,
-                                        to: s.to,
-                                        price: pricePerSeat,
-                                        fromLat: s.fromLat,
-                                        fromLng: s.fromLng,
-                                        toLat: s.toLat,
-                                        toLng: s.toLng,
-                                      ),
-                                    );
-                                  } catch (_) {}
-
-                                  // 4. Switch to Home tab (index 0)
-                                  try {
-                                    context.read<CarpoolNavCubit>().select(0);
-                                  } catch (_) {}
-
-                                  // 5. Close current page and return to Home page
-                                  if (Navigator.of(context).canPop()) {
-                                    Navigator.of(context).pop();
-                                  }
-
-                                  // 6. Show confirmation message
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      backgroundColor: const Color(0xFF140D43),
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      content: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.check_circle_rounded,
-                                            color: Color(0xFF00E676),
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: Text(
-                                              'Ride posted: ${s.from} → ${s.to} (₹$pricePerSeat). Added to Popular Routes!',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                                  SearchBookingRiderPage.show(
+                                    context,
+                                    originCity: originCity.isNotEmpty
+                                        ? originCity
+                                        : s.from,
+                                    destinationCity: destinationCity.isNotEmpty
+                                        ? destinationCity
+                                        : s.to,
+                                    originLat: originCoords.lat,
+                                    originLng: originCoords.lng,
+                                    destinationLat: destCoords.lat,
+                                    destinationLng: destCoords.lng,
+                                    date: s.departure,
+                                    seats: s.seats > 0 ? s.seats : 2,
+                                    radiusKm: 30,
                                   );
                                 },
                                 child: const Center(

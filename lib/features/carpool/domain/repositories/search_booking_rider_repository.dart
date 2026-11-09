@@ -7,7 +7,13 @@ abstract class SearchBookingRiderRepository {
   Future<List<CarpoolRideEntity>> searchRides({
     required String from,
     required String to,
+    double? originLat,
+    double? originLng,
+    double? destinationLat,
+    double? destinationLng,
     DateTime? date,
+    int? seats,
+    int? radiusKm,
   });
 
   Future<RiderBookingEntity> bookSeat({

@@ -12,10 +12,8 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
   final String apiKey;
   final HttpClient _client;
 
-  GooglePlacesRemoteDataSourceImpl({
-    required this.apiKey,
-    HttpClient? client,
-  }) : _client = client ?? HttpClient();
+  GooglePlacesRemoteDataSourceImpl({required this.apiKey, HttpClient? client})
+    : _client = client ?? HttpClient();
 
   @override
   Future<List<PlacePredictionModel>> getPlacePredictions(String query) async {
@@ -24,14 +22,17 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
       return const [];
     }
 
+    // 0. Curated Local Places in AP, Telangana & India (Instant, verified)
+    final localMatches = _findLocalMatches(cleanQuery);
+
     // 1. Google Places API (New): Primary endpoint enabled on modern Google Cloud projects.
     try {
       final uriNew = Uri.parse(
         'https://places.googleapis.com/v1/places:autocomplete',
       );
-      final request = await _client.postUrl(uriNew).timeout(
-        const Duration(seconds: 4),
-      );
+      final request = await _client
+          .postUrl(uriNew)
+          .timeout(const Duration(seconds: 4));
       request.headers.set('X-Goog-Api-Key', apiKey);
       request.headers.set('Content-Type', 'application/json');
       request.write(
@@ -51,48 +52,89 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
         if (suggestions != null && suggestions.isNotEmpty) {
           final results = suggestions
               .map(
-                (e) => PlacePredictionModel.fromJson(
-                  e as Map<String, dynamic>,
-                ),
+                (e) => PlacePredictionModel.fromJson(e as Map<String, dynamic>),
               )
               .toList();
-          if (results.isNotEmpty) return results;
+          if (results.isNotEmpty) {
+            return _mergeResults(localMatches, results);
+          }
         }
       }
     } catch (_) {
       // Fall through to real-time OSM Geocoder
     }
 
-    // 2. Real-Time Dynamic OpenStreetMap Photon Geocoder
-    // Discovers every village, town, mandal, district, locality & city across India
-    // with exact live latitude and longitude without static hardcoded data.
+    // 2. Real-Time Dynamic OpenStreetMap Photon Geocoder (India Bounded)
     try {
       final photonResults = await _fetchFromPhoton(cleanQuery);
       if (photonResults.isNotEmpty) {
-        return photonResults;
+        return _mergeResults(localMatches, photonResults);
       }
     } catch (_) {
       // Fall through to Nominatim
     }
 
-    // 3. OpenStreetMap Nominatim Live Geocoder Fallback
+    // 3. OpenStreetMap Nominatim Live Geocoder Fallback (India only)
     try {
       final nominatimResults = await _fetchFromNominatim(cleanQuery);
       if (nominatimResults.isNotEmpty) {
-        return nominatimResults;
+        return _mergeResults(localMatches, nominatimResults);
       }
     } catch (_) {
       // Fall through to dynamic query fallback
     }
 
+    if (localMatches.isNotEmpty) {
+      return localMatches;
+    }
+
     return _dynamicSingleFallback(cleanQuery);
   }
 
+  List<PlacePredictionModel> _findLocalMatches(String query) {
+    final places = CarpoolDistanceCalculator.searchLocalPlaces(query);
+    return places.map((geo) {
+      final sec = '${geo.type} • ${geo.district}, ${geo.state}';
+      return PlacePredictionModel(
+        placeId: 'local_${geo.name.toLowerCase()}',
+        description: '${geo.name}, ${geo.district}, ${geo.state}',
+        mainText: geo.name,
+        secondaryText: sec,
+        lat: geo.lat,
+        lng: geo.lng,
+      );
+    }).toList();
+  }
+
+  List<PlacePredictionModel> _mergeResults(
+    List<PlacePredictionModel> local,
+    List<PlacePredictionModel> remote,
+  ) {
+    final seen = <String>{};
+    final merged = <PlacePredictionModel>[];
+
+    for (final p in local) {
+      final key = p.mainText.toLowerCase();
+      if (!seen.contains(key)) {
+        seen.add(key);
+        merged.add(p);
+      }
+    }
+    for (final p in remote) {
+      final key = p.mainText.toLowerCase();
+      if (!seen.contains(key)) {
+        seen.add(key);
+        merged.add(p);
+      }
+    }
+    return merged;
+  }
+
   /// Fetches places from Photon (OpenStreetMap Elasticsearch geocoder).
-  /// Accurately returns towns, mandals, and villages with real coordinates.
+  /// Strictly constrained to India with bounding box and coordinate boundaries.
   Future<List<PlacePredictionModel>> _fetchFromPhoton(String query) async {
     final uri = Uri.parse(
-      'https://photon.komoot.io/api/?q=${Uri.encodeComponent(query)}&limit=15',
+      'https://photon.komoot.io/api/?q=${Uri.encodeComponent(query)}&limit=15&bbox=68.1,6.7,97.4,37.1',
     );
     final req = await _client.getUrl(uri).timeout(const Duration(seconds: 4));
     req.headers.set('User-Agent', 'PathwayCarpoolApp/1.0');
@@ -119,12 +161,28 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
           ? (coords[1] as num).toDouble()
           : null;
 
-      final name = ((props['name'] ?? props['city'] ?? props['locality'] ?? '') as String).trim();
+      // Reject anything outside Indian geographic territory
+      if (lat != null && lng != null) {
+        if (lat < 6.5 || lat > 38.0 || lng < 68.0 || lng > 98.0) {
+          continue;
+        }
+      }
+
+      final country = (props['country'] ?? '') as String;
+      if (country.isNotEmpty &&
+          country.toLowerCase() != 'india' &&
+          country.toLowerCase() != 'in') {
+        continue;
+      }
+
+      final name =
+          ((props['name'] ?? props['city'] ?? props['locality'] ?? '')
+                  as String)
+              .trim();
       if (name.isEmpty) continue;
 
       final state = (props['state'] ?? '') as String;
       final district = (props['district'] ?? props['county'] ?? '') as String;
-      final country = (props['country'] ?? 'India') as String;
       final osmValue = (props['osm_value'] ?? props['type'] ?? '') as String;
 
       final secParts = <String>[];
@@ -136,11 +194,16 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
       }
       if (country.isNotEmpty) {
         secParts.add(country);
+      } else {
+        secParts.add('India');
       }
       final secondaryText = secParts.join(', ');
-      final description = secondaryText.isNotEmpty ? '$name, $secondaryText' : name;
+      final description = secondaryText.isNotEmpty
+          ? '$name, $secondaryText'
+          : name;
 
-      final uniqueKey = '${name.toLowerCase()}_${lat?.toStringAsFixed(3)}_${lng?.toStringAsFixed(3)}';
+      final uniqueKey =
+          '${name.toLowerCase()}_${lat?.toStringAsFixed(3)}_${lng?.toStringAsFixed(3)}';
       if (seen.contains(uniqueKey)) continue;
       seen.add(uniqueKey);
 
@@ -156,7 +219,8 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
         );
       }
 
-      final placeId = 'osm_${props['osm_type'] ?? 'p'}_${props['osm_id'] ?? uniqueKey}';
+      final placeId =
+          'osm_${props['osm_type'] ?? 'p'}_${props['osm_id'] ?? uniqueKey}';
 
       results.add(
         PlacePredictionModel(
@@ -175,17 +239,13 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
 
   /// Live Nominatim (OpenStreetMap) Fallback
   Future<List<PlacePredictionModel>> _fetchFromNominatim(String query) async {
-    final uri = Uri.https(
-      'nominatim.openstreetmap.org',
-      '/search',
-      {
-        'q': query,
-        'countrycodes': 'in',
-        'format': 'json',
-        'addressdetails': '1',
-        'limit': '10',
-      },
-    );
+    final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
+      'q': query,
+      'countrycodes': 'in',
+      'format': 'json',
+      'addressdetails': '1',
+      'limit': '10',
+    });
     final req = await _client.getUrl(uri).timeout(const Duration(seconds: 4));
     req.headers.set('User-Agent', 'PathwayCarpoolApp/1.0');
     final res = await req.close().timeout(const Duration(seconds: 4));
@@ -203,13 +263,18 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
       final displayName = (item['display_name'] ?? '') as String;
       final rawName = (item['name'] ?? '') as String;
       final parts = displayName.split(',');
-      final mainText = rawName.isNotEmpty ? rawName : (parts.isNotEmpty ? parts.first.trim() : query);
-      final secondaryText = parts.length > 1 ? parts.sublist(1).join(',').trim() : '';
+      final mainText = rawName.isNotEmpty
+          ? rawName
+          : (parts.isNotEmpty ? parts.first.trim() : query);
+      final secondaryText = parts.length > 1
+          ? parts.sublist(1).join(',').trim()
+          : '';
 
       final double? lat = double.tryParse((item['lat'] ?? '').toString());
       final double? lng = double.tryParse((item['lon'] ?? '').toString());
 
-      final key = '${mainText.toLowerCase()}_${lat?.toStringAsFixed(3)}_${lng?.toStringAsFixed(3)}';
+      final key =
+          '${mainText.toLowerCase()}_${lat?.toStringAsFixed(3)}_${lng?.toStringAsFixed(3)}';
       if (seen.contains(key)) continue;
       seen.add(key);
 
@@ -218,7 +283,8 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
           mainText,
           lat,
           lng,
-          type: (item['addresstype'] ?? item['type'] ?? 'Village / Town').toString(),
+          type: (item['addresstype'] ?? item['type'] ?? 'Village / Town')
+              .toString(),
         );
       }
 
@@ -249,7 +315,9 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
         placeId: 'custom_${DateTime.now().millisecondsSinceEpoch}',
         description: '$capitalized, India',
         mainText: capitalized,
-        secondaryText: geo != null ? geo.subtitle : 'Village / Town / Location in India',
+        secondaryText: geo != null
+            ? geo.subtitle
+            : 'Village / Town / Location in India',
         lat: geo?.lat,
         lng: geo?.lng,
       ),
