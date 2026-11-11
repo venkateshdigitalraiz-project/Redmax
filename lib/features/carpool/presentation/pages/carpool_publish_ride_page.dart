@@ -137,17 +137,17 @@ class _PublishRideViewState extends State<_PublishRideView> {
     // Resolve coordinates using unified resolveCoordinates helper
     final originCoords = CarpoolDistanceCalculator.resolveCoordinates(
       from,
-      preferredLat: s.fromLat,
-      preferredLng: s.fromLng,
-      defaultLat: 17.3850,
-      defaultLng: 78.4867,
+      preferredLat: s.fromLat != 0.0 ? s.fromLat : null,
+      preferredLng: s.fromLng != 0.0 ? s.fromLng : null,
+      defaultLat: s.fromLat,
+      defaultLng: s.fromLng,
     );
     final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
       to,
-      preferredLat: s.toLat,
-      preferredLng: s.toLng,
-      defaultLat: 16.5062,
-      defaultLng: 80.6480,
+      preferredLat: s.toLat != 0.0 ? s.toLat : null,
+      preferredLng: s.toLng != 0.0 ? s.toLng : null,
+      defaultLat: s.toLat,
+      defaultLng: s.toLng,
     );
 
     bloc.add(

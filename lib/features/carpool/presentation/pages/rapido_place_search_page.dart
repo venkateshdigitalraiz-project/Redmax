@@ -132,8 +132,8 @@ class _RapidoPlaceSearchViewState extends State<_RapidoPlaceSearchView> {
       chosen,
       preferredLat: place.lat,
       preferredLng: place.lng,
-      defaultLat: widget.isPickup ? 17.7051 : 16.3067,
-      defaultLng: widget.isPickup ? 83.1491 : 80.4365,
+      defaultLat: 0.0,
+      defaultLng: 0.0,
     );
     Navigator.of(context).pop(CarpoolPlaceResult(
       name: chosen,
@@ -511,7 +511,7 @@ class _RapidoPlaceSearchViewState extends State<_RapidoPlaceSearchView> {
             const SizedBox(height: 12),
             Text(
               isQueryEmpty
-                  ? 'Search towns, villages, or cities'
+                  ? 'Search for a location'
                   : 'No matching locations found',
               style: const TextStyle(
                 fontSize: 14.5,
@@ -522,8 +522,8 @@ class _RapidoPlaceSearchViewState extends State<_RapidoPlaceSearchView> {
             const SizedBox(height: 4),
             Text(
               isQueryEmpty
-                  ? 'Type any village, mandal, town, or city name'
-                  : 'Try typing a village, mandal, or town name',
+                  ? 'Type an address, landmark, or area'
+                  : 'Try typing a different place or area',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12.5,

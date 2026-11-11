@@ -22,9 +22,6 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
       return const [];
     }
 
-    // 0. Curated Local Places in AP, Telangana & India (Instant, verified)
-    final localMatches = _findLocalMatches(cleanQuery);
-
     // 1. Google Places API (New): Primary endpoint enabled on modern Google Cloud projects.
     try {
       final uriNew = Uri.parse(
@@ -56,7 +53,7 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
               )
               .toList();
           if (results.isNotEmpty) {
-            return _mergeResults(localMatches, results);
+            return results;
           }
         }
       }
@@ -68,7 +65,7 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
     try {
       final photonResults = await _fetchFromPhoton(cleanQuery);
       if (photonResults.isNotEmpty) {
-        return _mergeResults(localMatches, photonResults);
+        return photonResults;
       }
     } catch (_) {
       // Fall through to Nominatim
@@ -78,56 +75,13 @@ class GooglePlacesRemoteDataSourceImpl implements PlacesRemoteDataSource {
     try {
       final nominatimResults = await _fetchFromNominatim(cleanQuery);
       if (nominatimResults.isNotEmpty) {
-        return _mergeResults(localMatches, nominatimResults);
+        return nominatimResults;
       }
     } catch (_) {
       // Fall through to dynamic query fallback
     }
 
-    if (localMatches.isNotEmpty) {
-      return localMatches;
-    }
-
     return _dynamicSingleFallback(cleanQuery);
-  }
-
-  List<PlacePredictionModel> _findLocalMatches(String query) {
-    final places = CarpoolDistanceCalculator.searchLocalPlaces(query);
-    return places.map((geo) {
-      final sec = '${geo.type} • ${geo.district}, ${geo.state}';
-      return PlacePredictionModel(
-        placeId: 'local_${geo.name.toLowerCase()}',
-        description: '${geo.name}, ${geo.district}, ${geo.state}',
-        mainText: geo.name,
-        secondaryText: sec,
-        lat: geo.lat,
-        lng: geo.lng,
-      );
-    }).toList();
-  }
-
-  List<PlacePredictionModel> _mergeResults(
-    List<PlacePredictionModel> local,
-    List<PlacePredictionModel> remote,
-  ) {
-    final seen = <String>{};
-    final merged = <PlacePredictionModel>[];
-
-    for (final p in local) {
-      final key = p.mainText.toLowerCase();
-      if (!seen.contains(key)) {
-        seen.add(key);
-        merged.add(p);
-      }
-    }
-    for (final p in remote) {
-      final key = p.mainText.toLowerCase();
-      if (!seen.contains(key)) {
-        seen.add(key);
-        merged.add(p);
-      }
-    }
-    return merged;
   }
 
   /// Fetches places from Photon (OpenStreetMap Elasticsearch geocoder).

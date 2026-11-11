@@ -477,29 +477,25 @@ class CarpoolOfferRideBloc
   ) async {
     emit(state.copyWith(isPricingLoading: true));
 
-    final fromGeo = CarpoolDistanceCalculator.findGeo(state.from);
-    final toGeo = CarpoolDistanceCalculator.findGeo(state.to);
+    final originCoords = CarpoolDistanceCalculator.resolveCoordinates(
+      state.from,
+      preferredLat: event.originLat ?? (state.fromLat != 0.0 ? state.fromLat : null),
+      preferredLng: event.originLng ?? (state.fromLng != 0.0 ? state.fromLng : null),
+      defaultLat: state.fromLat,
+      defaultLng: state.fromLng,
+    );
+    final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
+      state.to,
+      preferredLat: event.destinationLat ?? (state.toLat != 0.0 ? state.toLat : null),
+      preferredLng: event.destinationLng ?? (state.toLng != 0.0 ? state.toLng : null),
+      defaultLat: state.toLat,
+      defaultLng: state.toLng,
+    );
 
-    final oLat =
-        event.originLat ??
-        (state.fromLat != 0.0 ? state.fromLat : null) ??
-        fromGeo?.lat ??
-        28.6139;
-    final oLng =
-        event.originLng ??
-        (state.fromLng != 0.0 ? state.fromLng : null) ??
-        fromGeo?.lng ??
-        77.2090;
-    final dLat =
-        event.destinationLat ??
-        (state.toLat != 0.0 ? state.toLat : null) ??
-        toGeo?.lat ??
-        26.9124;
-    final dLng =
-        event.destinationLng ??
-        (state.toLng != 0.0 ? state.toLng : null) ??
-        toGeo?.lng ??
-        75.7873;
+    final oLat = originCoords.lat;
+    final oLng = originCoords.lng;
+    final dLat = destCoords.lat;
+    final dLng = destCoords.lng;
 
     try {
       final result = await _calculatePricing(
@@ -603,21 +599,28 @@ class CarpoolOfferRideBloc
   ) async {
     emit(state.copyWith(status: CarpoolStatus.loading));
     try {
+      final originCoords = CarpoolDistanceCalculator.resolveCoordinates(
+        state.from,
+        preferredLat: state.fromLat != 0.0 ? state.fromLat : null,
+        preferredLng: state.fromLng != 0.0 ? state.fromLng : null,
+        defaultLat: state.fromLat,
+        defaultLng: state.fromLng,
+      );
+      final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
+        state.to,
+        preferredLat: state.toLat != 0.0 ? state.toLat : null,
+        preferredLng: state.toLng != 0.0 ? state.toLng : null,
+        defaultLat: state.toLat,
+        defaultLng: state.toLng,
+      );
+
       final fromGeo = CarpoolDistanceCalculator.findGeo(state.from);
       final toGeo = CarpoolDistanceCalculator.findGeo(state.to);
 
-      final oLat = state.fromLat != 0.0
-          ? state.fromLat
-          : (fromGeo?.lat ?? 28.6315);
-      final oLng = state.fromLng != 0.0
-          ? state.fromLng
-          : (fromGeo?.lng ?? 77.2167);
-      final dLat = state.toLat != 0.0
-          ? state.toLat
-          : (toGeo?.lat ?? 26.9220);
-      final dLng = state.toLng != 0.0
-          ? state.toLng
-          : (toGeo?.lng ?? 75.7789);
+      final oLat = originCoords.lat;
+      final oLng = originCoords.lng;
+      final dLat = destCoords.lat;
+      final dLng = destCoords.lng;
 
       final vehicleStr = [
         if (state.vehicleModel.trim().isNotEmpty) state.vehicleModel.trim(),

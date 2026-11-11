@@ -15,7 +15,7 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
 
     return const DashboardData(
       userName: 'Venkatesh',
-      locationCity: 'Hyderabad',
+      locationCity: 'Current Location',
       unreadNotificationsCount: 2,
       services: [
         DashboardServiceItem(

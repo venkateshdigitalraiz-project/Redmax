@@ -95,20 +95,27 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
   bool _isEditingFrom = true;
   bool _isSearching = false;
   Timer? _debounceTimer;
-  int _selectedCategoryTab =
-      0; // 0: Popular Cities, 1: Popular Villages & Towns
+
+  double? _fromLat;
+  double? _fromLng;
+  double? _toLat;
+  double? _toLng;
 
   void _onQuickLocationSelected(String locationName, {double? lat, double? lng}) {
-    final geo = (lat != null && lng != null)
-        ? null
-        : CarpoolDistanceCalculator.findGeo(locationName);
-    final resolvedLat = lat ?? geo?.lat;
-    final resolvedLng = lng ?? geo?.lng;
+    final coords = CarpoolDistanceCalculator.resolveCoordinates(
+      locationName,
+      preferredLat: lat,
+      preferredLng: lng,
+      defaultLat: 0.0,
+      defaultLng: 0.0,
+    );
 
     final bloc = context.read<CarpoolOfferRideBloc>();
     if (_isEditingFrom) {
       _fromController.text = locationName;
-      bloc.add(CarpoolOfferFromChanged(locationName, lat: resolvedLat, lng: resolvedLng));
+      _fromLat = coords.lat;
+      _fromLng = coords.lng;
+      bloc.add(CarpoolOfferFromChanged(locationName, lat: coords.lat, lng: coords.lng));
       if (_toController.text.trim().isEmpty ||
           _toController.text.trim().toLowerCase() ==
               locationName.toLowerCase()) {
@@ -123,7 +130,9 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
       }
     } else {
       _toController.text = locationName;
-      bloc.add(CarpoolOfferToChanged(locationName, lat: resolvedLat, lng: resolvedLng));
+      _toLat = coords.lat;
+      _toLng = coords.lng;
+      bloc.add(CarpoolOfferToChanged(locationName, lat: coords.lat, lng: coords.lng));
       FocusScope.of(context).unfocus();
       setState(() => _isSearching = false);
     }
@@ -135,6 +144,10 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
     final s = context.read<CarpoolOfferRideBloc>().state;
     _fromController = TextEditingController(text: s.from);
     _toController = TextEditingController(text: s.to);
+    _fromLat = s.fromLat != 0.0 ? s.fromLat : null;
+    _fromLng = s.fromLng != 0.0 ? s.fromLng : null;
+    _toLat = s.toLat != 0.0 ? s.toLat : null;
+    _toLng = s.toLng != 0.0 ? s.toLng : null;
     _fromFocus = FocusNode();
     _toFocus = FocusNode();
 
@@ -181,17 +194,21 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
     final chosen = place.mainText.isNotEmpty
         ? place.mainText
         : place.description;
-    final geo = (place.lat != null && place.lng != null)
-        ? null
-        : CarpoolDistanceCalculator.findGeo(chosen);
-    final resolvedLat = place.lat ?? geo?.lat;
-    final resolvedLng = place.lng ?? geo?.lng;
+    final coords = CarpoolDistanceCalculator.resolveCoordinates(
+      chosen,
+      preferredLat: place.lat,
+      preferredLng: place.lng,
+      defaultLat: 0.0,
+      defaultLng: 0.0,
+    );
 
     final bloc = context.read<CarpoolOfferRideBloc>();
 
     if (_isEditingFrom) {
       _fromController.text = chosen;
-      bloc.add(CarpoolOfferFromChanged(chosen, lat: resolvedLat, lng: resolvedLng));
+      _fromLat = coords.lat;
+      _fromLng = coords.lng;
+      bloc.add(CarpoolOfferFromChanged(chosen, lat: coords.lat, lng: coords.lng));
       if (_toController.text.trim().isEmpty ||
           _toController.text.trim().toLowerCase() == chosen.toLowerCase()) {
         _toFocus.requestFocus();
@@ -202,16 +219,26 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
       }
     } else {
       _toController.text = chosen;
-      bloc.add(CarpoolOfferToChanged(chosen, lat: resolvedLat, lng: resolvedLng));
+      _toLat = coords.lat;
+      _toLng = coords.lng;
+      bloc.add(CarpoolOfferToChanged(chosen, lat: coords.lat, lng: coords.lng));
       FocusScope.of(context).unfocus();
       setState(() => _isSearching = false);
     }
   }
 
   void _onSwap(CarpoolOfferRideBloc bloc) {
-    final temp = _fromController.text;
+    final tempText = _fromController.text;
     _fromController.text = _toController.text;
-    _toController.text = temp;
+    _toController.text = tempText;
+
+    final tempLat = _fromLat;
+    final tempLng = _fromLng;
+    _fromLat = _toLat;
+    _fromLng = _toLng;
+    _toLat = tempLat;
+    _toLng = tempLng;
+
     bloc.add(const CarpoolOfferSwapPressed());
 
     if (_isSearching) {
@@ -224,8 +251,10 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
 
   void _onUseCurrentLocation() {
     final bloc = context.read<CarpoolOfferRideBloc>();
-    const loc = 'Current Location (Hyderabad)';
+    const loc = 'Current Location';
     _fromController.text = loc;
+    _fromLat = 17.3850;
+    _fromLng = 78.4867;
     bloc.add(const CarpoolOfferFromChanged(loc, lat: 17.3850, lng: 78.4867));
     _toFocus.requestFocus();
     setState(() => _isSearching = true);
@@ -706,7 +735,7 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
 
                 const Divider(height: 1, color: Color(0xFFEDE8FF)),
 
-                // ── 4. Main Content: Google Places Autocomplete + Popular Cities & Villages ──
+                // ── 4. Main Content: Google Places Autocomplete ──
                 Expanded(
                   child:
                       BlocBuilder<
@@ -744,8 +773,8 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
                             );
                           }
 
-                          // Default view or when query is empty: Display Popular Cities & Villages on bottom
-                          return _buildPopularSection();
+                          // Default view or when query is empty: Display clean search prompt with Current Location option
+                          return _buildEmptySearchPrompt();
                         },
                       ),
                 ),
@@ -791,10 +820,22 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
                             );
                             return;
                           }
-                          final fromGeo = CarpoolDistanceCalculator.findGeo(f);
-                          final toGeo = CarpoolDistanceCalculator.findGeo(t);
-                          bloc.add(CarpoolOfferFromChanged(f, lat: fromGeo?.lat, lng: fromGeo?.lng));
-                          bloc.add(CarpoolOfferToChanged(t, lat: toGeo?.lat, lng: toGeo?.lng));
+                          final originCoords = CarpoolDistanceCalculator.resolveCoordinates(
+                            f,
+                            preferredLat: _fromLat ?? (f == s.from && s.fromLat != 0.0 ? s.fromLat : null),
+                            preferredLng: _fromLng ?? (f == s.from && s.fromLng != 0.0 ? s.fromLng : null),
+                            defaultLat: s.fromLat,
+                            defaultLng: s.fromLng,
+                          );
+                          final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
+                            t,
+                            preferredLat: _toLat ?? (t == s.to && s.toLat != 0.0 ? s.toLat : null),
+                            preferredLng: _toLng ?? (t == s.to && s.toLng != 0.0 ? s.toLng : null),
+                            defaultLat: s.toLat,
+                            defaultLng: s.toLng,
+                          );
+                          bloc.add(CarpoolOfferFromChanged(f, lat: originCoords.lat, lng: originCoords.lng));
+                          bloc.add(CarpoolOfferToChanged(t, lat: destCoords.lat, lng: destCoords.lng));
                           Navigator.of(context).pop();
                         },
                         child: const Center(
@@ -978,202 +1019,119 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
     );
   }
 
-  Widget _buildPopularSection() {
-    final cities = CarpoolDistanceCalculator.getAllCities();
-    final villages = CarpoolDistanceCalculator.getAllVillagesAndTowns();
-    final list = _selectedCategoryTab == 0 ? cities : villages;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildEmptySearchPrompt() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 30),
+      physics: const BouncingScrollPhysics(),
       children: [
-        // Category Switcher Tabs on bottom
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-          child: Row(
-            children: [
-              _buildCategoryTab(
-                index: 0,
-                label: '🏙️ Popular Cities (${cities.length})',
-                isSelected: _selectedCategoryTab == 0,
-              ),
-              const SizedBox(width: 8),
-              _buildCategoryTab(
-                index: 1,
-                label: '🏡 All Villages & Towns (${villages.length})',
-                isSelected: _selectedCategoryTab == 1,
-              ),
-            ],
-          ),
-        ),
-
-        // List of popular locations
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            itemCount: list.length,
-            separatorBuilder: (_, __) => const Divider(
-              height: 1,
-              indent: 52,
-              endIndent: 8,
-              color: Color(0xFFF1EEFC),
+        // "Use Current Location" Quick Action Card
+        InkWell(
+          onTap: _onUseCurrentLocation,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFEDE8FF), width: 1.1),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x06140D43),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
-            itemBuilder: (context, index) {
-              final geo = list[index];
-              final name = geo.name;
-              final subtitle = geo.subtitle;
-              final type = geo.type;
-              final isVillage = type.toLowerCase().contains('village');
-              final isTown = type.toLowerCase().contains('town');
-
-              return InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () => _onQuickLocationSelected(name, lat: geo.lat, lng: geo.lng),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 10,
-                    horizontal: 4,
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEDE8FF),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Row(
+                  child: const Icon(
+                    Icons.my_location_rounded,
+                    color: Color(0xFF3815D8),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: isVillage
-                              ? const Color(0xFFDCFCE7)
-                              : (isTown
-                                    ? const Color(0xFFF3E8FF)
-                                    : const Color(0xFFE0E7FF)),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          isVillage
-                              ? Icons.home_rounded
-                              : (isTown
-                                    ? Icons.location_city_rounded
-                                    : Icons.apartment_rounded),
-                          color: isVillage
-                              ? const Color(0xFF15803D)
-                              : (isTown
-                                    ? const Color(0xFF7E22CE)
-                                    : const Color(0xFF2563EB)),
-                          size: 20,
+                      Text(
+                        'Use Current Location',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF3815D8),
                         ),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    name,
-                                    style: const TextStyle(
-                                      fontSize: 14.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF140D43),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 1.5),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF1EEFC),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    geo.coordinatesDisplay,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF3815D8),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              subtitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF6B658C),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isVillage
-                              ? const Color(0xFFDCFCE7)
-                              : (isTown
-                                  ? const Color(0xFFF3E8FF)
-                                  : const Color(0xFFF1EEFC)),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          type,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: isVillage
-                                ? const Color(0xFF15803D)
-                                : (isTown
-                                    ? const Color(0xFF7E22CE)
-                                    : const Color(0xFF3815D8)),
-                          ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Detect GPS coordinates automatically',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B658C),
                         ),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryTab({
-    required int index,
-    required String label,
-    required bool isSelected,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedCategoryTab = index),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF3815D8)
-                : const Color(0xFFF1EEFC),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: isSelected ? Colors.white : const Color(0xFF6B658C),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF6B658C),
+                  size: 20,
+                ),
+              ],
             ),
           ),
         ),
-      ),
+        const SizedBox(height: 48),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF1EEFC),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.search_rounded,
+                  color: Color(0xFF3815D8),
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _isEditingFrom
+                    ? 'Search pick-up location'
+                    : 'Search drop-off location',
+                style: const TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF140D43),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Enter an area, landmark, or address to search',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: Color(0xFF6B658C),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

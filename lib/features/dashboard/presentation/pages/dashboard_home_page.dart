@@ -130,7 +130,7 @@ class DashboardHomePage extends StatelessWidget {
                       onLocationTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Selected City: ${data.locationCity}'),
+                            content: Text('Selected Location: ${data.locationCity}'),
                             duration: const Duration(seconds: 1),
                           ),
                         );

@@ -57,12 +57,12 @@ class CarpoolFindRideBookPressed extends CarpoolFindRideEvent {
 class CarpoolFindRideState extends Equatable {
   const CarpoolFindRideState({
     this.status = CarpoolStatus.initial,
-    this.from = 'Hyderabad',
+    this.from = 'Current Location',
     this.fromLat = 17.3850,
     this.fromLng = 78.4867,
-    this.to = 'Vijayawada',
-    this.toLat = 16.5062,
-    this.toLng = 80.6480,
+    this.to = '',
+    this.toLat = 0.0,
+    this.toLng = 0.0,
     this.filter = CarpoolDayFilter.today,
     this.rides = const [],
     this.favorites = const {},
@@ -85,7 +85,14 @@ class CarpoolFindRideState extends Equatable {
 
   int get distanceKm => rides.isNotEmpty
       ? rides.first.distanceKm
-      : CarpoolDistanceCalculator.calculateDistanceKm(from, to);
+      : CarpoolDistanceCalculator.calculateDistanceKm(
+          from,
+          to,
+          fromLat: fromLat,
+          fromLng: fromLng,
+          toLat: toLat,
+          toLng: toLng,
+        );
 
   CarpoolFindRideState copyWith({
     CarpoolStatus? status,

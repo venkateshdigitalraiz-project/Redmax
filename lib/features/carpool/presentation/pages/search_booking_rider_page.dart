@@ -238,15 +238,11 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
       fromText,
       preferredLat: _originLat,
       preferredLng: _originLng,
-      defaultLat: 17.7051,
-      defaultLng: 83.1491,
     );
     final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
       toText,
       preferredLat: _destinationLat,
       preferredLng: _destinationLng,
-      defaultLat: 16.3067,
-      defaultLng: 80.4365,
     );
 
     _originLat = originCoords.lat;
@@ -928,7 +924,7 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
                       }
                     },
                   ),
-                  hintText: 'Enter pickup city/location',
+                  hintText: 'Current Location or enter pickup point',
                   border: InputBorder.none,
                 ),
               ),
@@ -969,7 +965,7 @@ class _SearchBookingRiderViewState extends State<_SearchBookingRiderView> {
                       }
                     },
                   ),
-                  hintText: 'Enter dropoff city/location',
+                  hintText: 'Enter destination',
                   border: InputBorder.none,
                 ),
               ),

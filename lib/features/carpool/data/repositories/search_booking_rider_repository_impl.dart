@@ -129,15 +129,15 @@ class SearchBookingRiderRepositoryImpl implements SearchBookingRiderRepository {
       from,
       preferredLat: originLat,
       preferredLng: originLng,
-      defaultLat: 17.3850,
-      defaultLng: 78.4867,
+      defaultLat: originLat ?? 0.0,
+      defaultLng: originLng ?? 0.0,
     );
     final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
       to,
       preferredLat: destinationLat,
       preferredLng: destinationLng,
-      defaultLat: 16.3067,
-      defaultLng: 80.4365,
+      defaultLat: destinationLat ?? 0.0,
+      defaultLng: destinationLng ?? 0.0,
     );
 
     final resolvedOriginLat = originCoords.lat;

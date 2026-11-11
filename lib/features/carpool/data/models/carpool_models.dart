@@ -244,9 +244,25 @@ class CarpoolRideModel extends CarpoolRideEntity {
     final pricePerSeat = (json['pricePerSeat'] as num?)?.toInt() ??
         (json['price'] as num?)?.toInt() ??
         100;
+    final oLat = (json['originLat'] as num?)?.toDouble() ??
+        (json['originCoordinates']?['lat'] as num?)?.toDouble();
+    final oLng = (json['originLng'] as num?)?.toDouble() ??
+        (json['originCoordinates']?['lng'] as num?)?.toDouble();
+    final dLat = (json['destinationLat'] as num?)?.toDouble() ??
+        (json['destinationCoordinates']?['lat'] as num?)?.toDouble();
+    final dLng = (json['destinationLng'] as num?)?.toDouble() ??
+        (json['destinationCoordinates']?['lng'] as num?)?.toDouble();
+
     final distanceKm = (json['distanceKm'] as num?)?.toInt() ??
         (json['distance'] as num?)?.toInt() ??
-        CarpoolDistanceCalculator.calculateDistanceKm(from, to);
+        CarpoolDistanceCalculator.calculateDistanceKm(
+          from,
+          to,
+          fromLat: oLat,
+          fromLng: oLng,
+          toLat: dLat,
+          toLng: dLng,
+        );
     final totalBookings = (json['totalBookings'] as num?)?.toInt() ?? 0;
 
     // 5. Vehicle

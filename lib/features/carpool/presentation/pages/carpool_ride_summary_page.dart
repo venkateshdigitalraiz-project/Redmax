@@ -78,12 +78,26 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
   String? _lastTo;
   bool _isMapFullscreen = false;
 
-  void _fetchDistance(String from, String to) {
+  void _fetchDistance(
+    String from,
+    String to, {
+    double? fromLat,
+    double? fromLng,
+    double? toLat,
+    double? toLng,
+  }) {
     if (_lastFrom == from && _lastTo == to) return;
     _lastFrom = from;
     _lastTo = to;
 
-    CarpoolDistanceCalculator.fetchLiveDistance(from, to).then((res) {
+    CarpoolDistanceCalculator.fetchLiveDistance(
+      from,
+      to,
+      fromLat: fromLat,
+      fromLng: fromLng,
+      toLat: toLat,
+      toLng: toLng,
+    ).then((res) {
       if (mounted) {
         setState(() {
           _liveDistanceResult = res;
@@ -121,7 +135,14 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
         }
       },
       builder: (context, s) {
-        _fetchDistance(s.from, s.to);
+        _fetchDistance(
+          s.from,
+          s.to,
+          fromLat: s.fromLat,
+          fromLng: s.fromLng,
+          toLat: s.toLat,
+          toLng: s.toLng,
+        );
 
         final bloc = context.read<CarpoolOfferRideBloc>();
         final screenHeight = MediaQuery.of(context).size.height;

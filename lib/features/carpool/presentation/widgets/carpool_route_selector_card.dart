@@ -67,8 +67,11 @@ class CarpoolFromToSelector extends StatelessWidget {
     );
     if (selected != null && selected.name.trim().isNotEmpty) {
       final name = selected.name.trim();
-      onFromChanged?.call(name);
-      onFromLocationChanged?.call(name, selected.lat, selected.lng);
+      if (onFromLocationChanged != null) {
+        onFromLocationChanged!(name, selected.lat, selected.lng);
+      } else {
+        onFromChanged?.call(name);
+      }
     }
   }
 
@@ -82,8 +85,11 @@ class CarpoolFromToSelector extends StatelessWidget {
     );
     if (selected != null && selected.name.trim().isNotEmpty) {
       final name = selected.name.trim();
-      onToChanged?.call(name);
-      onToLocationChanged?.call(name, selected.lat, selected.lng);
+      if (onToLocationChanged != null) {
+        onToLocationChanged!(name, selected.lat, selected.lng);
+      } else {
+        onToChanged?.call(name);
+      }
     }
   }
 
@@ -126,13 +132,15 @@ class CarpoolFromToSelector extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            from,
+                            from.trim().isNotEmpty ? from : 'Current Location',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF140D43),
+                              color: from.trim().isNotEmpty
+                                  ? const Color(0xFF140D43)
+                                  : const Color(0xFF3815D8),
                             ),
                           ),
                         ],
@@ -181,13 +189,15 @@ class CarpoolFromToSelector extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            to,
+                            to.trim().isNotEmpty ? to : 'Enter Destination',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF140D43),
+                              color: to.trim().isNotEmpty
+                                  ? const Color(0xFF140D43)
+                                  : const Color(0xFF9E98BE),
                             ),
                           ),
                         ],
