@@ -82,11 +82,19 @@ class PlacePredictionModel extends PlacePredictionEntity {
       lng = double.tryParse(json['lon'].toString());
     }
 
-    if (lat == null || lng == null) {
-      final geo = CarpoolDistanceCalculator.findGeo(mainText);
-      if (geo != null) {
-        lat = geo.lat;
-        lng = geo.lng;
+    if (lat == null || lng == null || lat == 0.0 || lng == 0.0) {
+      final coords = CarpoolDistanceCalculator.resolveCoordinates(
+        mainText.isNotEmpty ? mainText : description,
+      );
+      if (coords.lat >= 6.5 && coords.lat <= 38.0 && coords.lng >= 68.0 && coords.lng <= 98.0) {
+        lat = coords.lat;
+        lng = coords.lng;
+      } else if (description.isNotEmpty) {
+        final descCoords = CarpoolDistanceCalculator.resolveCoordinates(description);
+        if (descCoords.lat >= 6.5 && descCoords.lat <= 38.0 && descCoords.lng >= 68.0 && descCoords.lng <= 98.0) {
+          lat = descCoords.lat;
+          lng = descCoords.lng;
+        }
       }
     }
 

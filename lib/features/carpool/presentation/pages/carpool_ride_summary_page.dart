@@ -4,6 +4,7 @@ import 'package:pathway/core/storage/auth_local_storage.dart';
 import 'package:pathway/core/utils/carpool_distance_calculator.dart';
 import 'package:pathway/core/utils/carpool_formatters.dart';
 import 'package:pathway/core/utils/carpool_status.dart';
+import 'package:pathway/features/carpool/presentation/widgets/carpool_route_selector_card.dart';
 
 import '../../data/datasources/carpool_mock_data_source.dart';
 import '../../data/repositories/carpool_repository_impl.dart';
@@ -99,6 +100,9 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
       toLng: toLng,
     ).then((res) {
       if (mounted) {
+        if (res.distanceKm > 3800) {
+          return;
+        }
         setState(() {
           _liveDistanceResult = res;
         });
@@ -150,30 +154,44 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
             ? screenHeight * 0.78
             : screenHeight * 0.44;
 
+        final activeStops = s.stopovers.isNotEmpty
+            ? s.stopovers
+                  .where((st) => s.selectedStopovers.contains(st))
+                  .toList()
+            : s.selectedStopovers.toList();
+        final orderedStops = CarpoolDistanceCalculator.orderStopoversInCorridor(
+          start: s.from,
+          destination: s.to,
+          stopovers: activeStops,
+          startLat: s.fromLat,
+          startLng: s.fromLng,
+          destLat: s.toLat,
+          destLng: s.toLng,
+        );
+
         // Pricing logic using dynamic API calculation when available
         final pricing = s.pricingCalculation ?? widget.pricing;
         final double ratePerKm = pricing?.ratePerKm ?? 3.5;
+
+        // Total distance considers direct origin to destination location (no halt distance added)
         final double distanceKmDouble =
-            pricing?.distanceKm ??
-            (s.selectedStopovers.isNotEmpty
-                ? CarpoolDistanceCalculator.calculateMultiStopDistance(
-                    s.from,
-                    s.to,
-                    s.selectedStopovers.toList(),
-                    startLat: s.fromLat,
-                    startLng: s.fromLng,
-                    destLat: s.toLat,
-                    destLng: s.toLng,
-                  ).toDouble()
-                : (_liveDistanceResult?.distanceKm?.toDouble() ??
-                      CarpoolDistanceCalculator.calculateDistanceKm(
-                        s.from,
-                        s.to,
-                        fromLat: s.fromLat,
-                        fromLng: s.fromLng,
-                        toLat: s.toLat,
-                        toLng: s.toLng,
-                      ).toDouble()));
+            ((_liveDistanceResult?.distanceKm != null &&
+                      _liveDistanceResult!.distanceKm > 0 &&
+                      _liveDistanceResult!.distanceKm <= 3800)
+                  ? _liveDistanceResult!.distanceKm.toDouble()
+                  : ((pricing?.distanceKm != null &&
+                            pricing!.distanceKm > 0 &&
+                            pricing.distanceKm <= 3800)
+                        ? pricing.distanceKm
+                        : CarpoolDistanceCalculator.calculateDistanceKm(
+                            s.from,
+                            s.to,
+                            fromLat: s.fromLat,
+                            fromLng: s.fromLng,
+                            toLat: s.toLat,
+                            toLng: s.toLng,
+                          ).toDouble()));
+
         final int distanceKm = distanceKmDouble.round();
         final int suggestedPrice =
             pricing?.suggestedPrice ?? (distanceKm * ratePerKm).round();
@@ -188,10 +206,9 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
         final int effectiveTotalPrice = effectivePricePerSeat * seats;
         final int totalPrice = effectiveTotalPrice;
         final int pricePerSeat = effectivePricePerSeat;
-        final String durationText = pricing != null
-            ? pricing.formattedDuration
-            : (_liveDistanceResult?.durationText ??
-                  CarpoolDistanceCalculator.estimateDuration(distanceKm));
+        final String durationText = _liveDistanceResult?.durationText ??
+            pricing?.formattedDuration ??
+            CarpoolDistanceCalculator.estimateDuration(distanceKm);
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7F6FD),
@@ -214,6 +231,7 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
                   fromLng: s.fromLng,
                   toLat: s.toLat,
                   toLng: s.toLng,
+                  stopovers: orderedStops,
                   distanceKm: distanceKm,
                   durationText: durationText,
                   isExpanded: _isMapFullscreen,
@@ -399,7 +417,7 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
                               s.to,
                               distanceKm,
                               durationText,
-                              stopovers: s.selectedStopovers.toList(),
+                              stopovers: orderedStops,
                             ),
 
                             const SizedBox(height: 14),
@@ -529,8 +547,9 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
     if (s.vehicleModel.trim().isEmpty || s.vehicleNumber.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Please enter your vehicle information before confirming'),
+          content: Text(
+            'Please enter your vehicle information before confirming',
+          ),
           backgroundColor: Color(0xFF3815D8),
           behavior: SnackBarBehavior.floating,
         ),
@@ -715,61 +734,85 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
               ),
             ),
             for (final stop in stopovers) ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    alignment: Alignment.center,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF5D24F7),
-                          width: 2.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Text(
-                          stop,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF140D43),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1.5,
-                          ),
+              Builder(
+                builder: (context) {
+                  CarpoolDistanceCalculator.resolveCoordinates(stop);
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 10,
+                          height: 10,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEDE8FF),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'Stopover',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF4C2BF0),
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFFF59E0B),
+                              width: 2.5,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Text(
+                              stop,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF140D43),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Halt',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFD97706),
+                                ),
+                              ),
+                            ),
+
+                            const Spacer(),
+                            InkWell(
+                              onTap: () {
+                                context.read<CarpoolOfferRideBloc>().add(
+                                  CarpoolOfferStopoverRemoved(stop),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: const Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 15,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               Padding(
                 padding: const EdgeInsets.only(left: 11),
@@ -815,6 +858,62 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
               ),
             ),
           ],
+
+          // Add Halt / Stopover Action Button
+          Padding(
+            padding: const EdgeInsets.only(left: 36, top: 4, bottom: 6),
+            child: Builder(
+              builder: (context) {
+                return InkWell(
+                  onTap: () async {
+                    final result = await carpoolSelectLocation(
+                      context,
+                      title: 'Search Halt / Stopover Location',
+                      isPickup: false,
+                    );
+                    if (result != null && result.name.trim().isNotEmpty) {
+                      final stopName = result.name.trim();
+                      if (result.lat != null && result.lng != null) {
+                        CarpoolDistanceCalculator.registerGeo(
+                          stopName,
+                          result.lat!,
+                          result.lng!,
+                        );
+                      }
+                      if (context.mounted) {
+                        context.read<CarpoolOfferRideBloc>().add(
+                          CarpoolOfferStopoverAdded(stopName),
+                        );
+                      }
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 15,
+                          color: Color(0xFF4C2BF0),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'Add Halt / Stopover',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF4C2BF0),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
 
           // Drop-off (To) Row with Google Maps Red Pin
           Row(
@@ -1614,6 +1713,7 @@ class _RideSummaryViewState extends State<_RideSummaryView> {
 }
 
 /// Rate badge pill indicating ₹10 / km
+// ignore: unused_element
 class _RateBadge extends StatelessWidget {
   final String rateText;
   const _RateBadge({required this.rateText});

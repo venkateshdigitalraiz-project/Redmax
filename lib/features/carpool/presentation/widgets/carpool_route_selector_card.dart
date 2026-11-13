@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pathway/core/constants/api_endpoints.dart';
 
 import '../pages/rapido_place_search_page.dart';
 
@@ -8,7 +9,7 @@ Future<CarpoolPlaceResult?> carpoolSelectLocation(
   required String title,
   String initialValue = '',
   bool isPickup = true,
-  String apiKey = 'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU',
+  String apiKey = ApiEndpoints.googleMapsApiKey,
 }) {
   return RapidoPlaceSearchPage.show(
     context,
@@ -54,7 +55,7 @@ class CarpoolFromToSelector extends StatelessWidget {
     this.toLabel = 'To',
     this.fromSearchTitle = 'Search Pickup Location',
     this.toSearchTitle = 'Search Drop Location',
-    this.apiKey = 'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU',
+    this.apiKey = ApiEndpoints.googleMapsApiKey,
   });
 
   Future<void> _pickFrom(BuildContext context) async {
@@ -272,7 +273,7 @@ class CarpoolRouteSelectorCard extends StatelessWidget {
     this.toLabel = 'To',
     this.fromSearchTitle = 'Search Pickup Location',
     this.toSearchTitle = 'Search Drop Location',
-    this.apiKey = 'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU',
+    this.apiKey = ApiEndpoints.googleMapsApiKey,
   });
 
   @override

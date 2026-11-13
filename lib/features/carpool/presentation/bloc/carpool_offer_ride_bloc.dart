@@ -121,10 +121,7 @@ class CarpoolOfferVehicleChanged extends CarpoolOfferRideEvent {
   final String model;
   final String number;
 
-  const CarpoolOfferVehicleChanged({
-    required this.model,
-    required this.number,
-  });
+  const CarpoolOfferVehicleChanged({required this.model, required this.number});
 
   @override
   List<Object?> get props => [model, number];
@@ -180,10 +177,10 @@ class CarpoolOfferRideState extends Equatable {
     required this.from,
     required this.to,
     required this.departure,
-    this.fromLat = 17.3850,
-    this.fromLng = 78.4867,
-    this.toLat = 16.5062,
-    this.toLng = 80.6480,
+    this.fromLat = 0.0,
+    this.fromLng = 0.0,
+    this.toLat = 0.0,
+    this.toLng = 0.0,
     this.seats = 3,
     this.pricePerSeat,
     this.rideType = CarpoolRideType.normal,
@@ -386,10 +383,7 @@ class CarpoolOfferRideBloc
       (e, emit) => emit(state.copyWith(rideType: e.type)),
     );
     on<CarpoolOfferVehicleChanged>((e, emit) {
-      emit(state.copyWith(
-        vehicleModel: e.model,
-        vehicleNumber: e.number,
-      ));
+      emit(state.copyWith(vehicleModel: e.model, vehicleNumber: e.number));
     });
     on<CarpoolOfferPublishPressed>(_onPublish);
     on<CarpoolOfferStopoverToggled>((e, emit) {
@@ -479,15 +473,19 @@ class CarpoolOfferRideBloc
 
     final originCoords = CarpoolDistanceCalculator.resolveCoordinates(
       state.from,
-      preferredLat: event.originLat ?? (state.fromLat != 0.0 ? state.fromLat : null),
-      preferredLng: event.originLng ?? (state.fromLng != 0.0 ? state.fromLng : null),
+      preferredLat:
+          event.originLat ?? (state.fromLat != 0.0 ? state.fromLat : null),
+      preferredLng:
+          event.originLng ?? (state.fromLng != 0.0 ? state.fromLng : null),
       defaultLat: state.fromLat,
       defaultLng: state.fromLng,
     );
     final destCoords = CarpoolDistanceCalculator.resolveCoordinates(
       state.to,
-      preferredLat: event.destinationLat ?? (state.toLat != 0.0 ? state.toLat : null),
-      preferredLng: event.destinationLng ?? (state.toLng != 0.0 ? state.toLng : null),
+      preferredLat:
+          event.destinationLat ?? (state.toLat != 0.0 ? state.toLat : null),
+      preferredLng:
+          event.destinationLng ?? (state.toLng != 0.0 ? state.toLng : null),
       defaultLat: state.toLat,
       defaultLng: state.toLng,
     );
@@ -507,15 +505,42 @@ class CarpoolOfferRideBloc
         ),
       );
 
+      final safeDistance = (result.distanceKm > 0 && result.distanceKm <= 3800)
+          ? result.distanceKm
+          : CarpoolDistanceCalculator.calculateDistanceKm(
+              state.from,
+              state.to,
+              fromLat: oLat,
+              fromLng: oLng,
+              toLat: dLat,
+              toLng: dLng,
+            ).toDouble();
+      final adjustedResult = safeDistance != result.distanceKm
+          ? CarpoolPricingEntity(
+              distanceKm: safeDistance,
+              effectiveDistanceKm: safeDistance,
+              durationMinutes: ((safeDistance / 58.0) * 60).round(),
+              provider: result.provider,
+              ratePerKm: result.ratePerKm,
+              suggestedPrice: (safeDistance * result.ratePerKm).round(),
+              allowedPriceRange: result.allowedPriceRange,
+              platformCharge: result.platformCharge,
+              riderBookingFee: result.riderBookingFee,
+              driverCommissionType: result.driverCommissionType,
+              driverCommissionValue: result.driverCommissionValue,
+              enableNegotiation: result.enableNegotiation,
+            )
+          : result;
+
       emit(
         state.copyWith(
-          pricingCalculation: result,
+          pricingCalculation: adjustedResult,
           isPricingLoading: false,
           fromLat: oLat,
           fromLng: oLng,
           toLat: dLat,
           toLng: dLng,
-          pricePerSeat: result.suggestedPrice,
+          pricePerSeat: adjustedResult.suggestedPrice,
         ),
       );
     } catch (e) {
@@ -523,16 +548,27 @@ class CarpoolOfferRideBloc
     }
   }
 
-  void _onFromChanged(
+  Future<void> _onFromChanged(
     CarpoolOfferFromChanged event,
     Emitter<CarpoolOfferRideState> emit,
-  ) {
+  ) async {
+    var lat = event.lat;
+    var lng = event.lng;
+    if ((lat == null || lng == null || (lat == 0.0 && lng == 0.0)) &&
+        event.value.trim().isNotEmpty) {
+      final fetched = await CarpoolDistanceCalculator.fetchGeocodeCoordinates(
+        event.value,
+      );
+      if (fetched != null) {
+        lat = fetched.lat;
+        lng = fetched.lng;
+      }
+    }
+
     final coords = CarpoolDistanceCalculator.resolveCoordinates(
       event.value,
-      preferredLat: event.lat,
-      preferredLng: event.lng,
-      defaultLat: 17.3850,
-      defaultLng: 78.4867,
+      preferredLat: lat,
+      preferredLng: lng,
     );
 
     emit(
@@ -548,16 +584,27 @@ class CarpoolOfferRideBloc
     );
   }
 
-  void _onToChanged(
+  Future<void> _onToChanged(
     CarpoolOfferToChanged event,
     Emitter<CarpoolOfferRideState> emit,
-  ) {
+  ) async {
+    var lat = event.lat;
+    var lng = event.lng;
+    if ((lat == null || lng == null || (lat == 0.0 && lng == 0.0)) &&
+        event.value.trim().isNotEmpty) {
+      final fetched = await CarpoolDistanceCalculator.fetchGeocodeCoordinates(
+        event.value,
+      );
+      if (fetched != null) {
+        lat = fetched.lat;
+        lng = fetched.lng;
+      }
+    }
+
     final coords = CarpoolDistanceCalculator.resolveCoordinates(
       event.value,
-      preferredLat: event.lat,
-      preferredLng: event.lng,
-      defaultLat: 16.5062,
-      defaultLng: 80.6480,
+      preferredLat: lat,
+      preferredLng: lng,
     );
 
     emit(
@@ -593,6 +640,36 @@ class CarpoolOfferRideBloc
     );
   }
 
+  static String _extractCity(String location) {
+    var raw = location.trim();
+    if (raw.isEmpty) return '';
+    raw = raw
+        .replaceAll(
+          RegExp(
+            r',?\s*(?:lat|lng|latitude|longitude)\s*[:=][^,}]+',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'^(?:address|place|name)\s*[:=]\s*', caseSensitive: false),
+          '',
+        )
+        .replaceAll(RegExp(r'''[{}"]'''), '')
+        .trim();
+    if (raw.contains(',')) {
+      final parts = raw
+          .split(',')
+          .map((p) => p.trim())
+          .where((p) => p.isNotEmpty)
+          .toList();
+      if (parts.isNotEmpty) {
+        return parts.first;
+      }
+    }
+    return raw;
+  }
+
   Future<void> _onPublish(
     CarpoolOfferPublishPressed event,
     Emitter<CarpoolOfferRideState> emit,
@@ -614,9 +691,6 @@ class CarpoolOfferRideBloc
         defaultLng: state.toLng,
       );
 
-      final fromGeo = CarpoolDistanceCalculator.findGeo(state.from);
-      final toGeo = CarpoolDistanceCalculator.findGeo(state.to);
-
       final oLat = originCoords.lat;
       final oLng = originCoords.lng;
       final dLat = destCoords.lat;
@@ -634,23 +708,18 @@ class CarpoolOfferRideBloc
           departure: state.departure,
           seats: state.seats,
           rideType: state.rideType,
-          pricePerSeat: state.pricePerSeat ??
+          pricePerSeat:
+              state.pricePerSeat ??
               (state.pricingCalculation?.suggestedPrice ?? 750),
           vehicle: vehicleStr.isNotEmpty ? vehicleStr : 'Honda City',
           origin: state.from,
           originLat: oLat,
           originLng: oLng,
-          originCity: fromGeo?.district ??
-              (state.from.contains(',')
-                  ? state.from.split(',').last.trim()
-                  : state.from),
+          originCity: _extractCity(state.from),
           destination: state.to,
           destinationLat: dLat,
           destinationLng: dLng,
-          destinationCity: toGeo?.district ??
-              (state.to.contains(',')
-                  ? state.to.split(',').last.trim()
-                  : state.to),
+          destinationCity: _extractCity(state.to),
           departureTime: CarpoolFormatters.toUtcIso(state.departure),
           availableSeats: state.seats,
           vehicleModel: state.vehicleModel.isNotEmpty

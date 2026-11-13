@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/utils/carpool_distance_calculator.dart';
 import '../../data/datasources/places_remote_data_source.dart';
 import '../../data/repositories/places_repository_impl.dart';
@@ -58,7 +59,7 @@ class _StopoversViewState extends State<_StopoversView> {
   void initState() {
     super.initState();
     final remoteDataSource = GooglePlacesRemoteDataSourceImpl(
-      apiKey: 'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU',
+      apiKey: ApiEndpoints.googleMapsApiKey,
     );
     final repository = PlacesRepositoryImpl(remoteDataSource);
     _getPlacePredictions = GetPlacePredictionsUseCase(repository);
@@ -178,7 +179,7 @@ class _StopoversViewState extends State<_StopoversView> {
     );
   }
 
-  /// Opens the Route Adjustment & Confirmation Sheet
+  /// Opens the simple Add Halt / Stopover confirmation sheet
   void _showRouteAdjustmentModal(
     BuildContext context,
     CarpoolOfferRideState state,
@@ -188,19 +189,12 @@ class _StopoversViewState extends State<_StopoversView> {
     double? lng,
   ) {
     _searchFocusNode.unfocus();
-    final adj = _validateStopover(
-      state,
-      candidateName,
-      candidateLat: lat,
-      candidateLng: lng,
-    );
 
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        const primaryPurple = Color(0xFF4C2BF0);
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -236,260 +230,29 @@ class _StopoversViewState extends State<_StopoversView> {
                 ),
               ),
 
-              // Title and Validation Pill
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Route Validation',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF6B658C),
-                            letterSpacing: 0.4,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          candidateName,
-                          style: const TextStyle(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF140D43),
-                          ),
-                        ),
-                        if (subtitle != null && subtitle.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitle,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              color: Color(0xFF6B658C),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Validation status badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: adj.isOnRoute
-                          ? const Color(0xFFDCFCE7)
-                          : const Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: adj.isOnRoute
-                            ? const Color(0xFF86EFAC)
-                            : const Color(0xFFFCA5A5),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          adj.isOnRoute
-                              ? Icons.check_circle_rounded
-                              : Icons.cancel_rounded,
-                          size: 14,
-                          color: adj.isOnRoute
-                              ? const Color(0xFF15803D)
-                              : const Color(0xFFB91C1C),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          adj.isOnRoute
-                              ? 'On your route'
-                              : 'This location is not on your route',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w800,
-                            color: adj.isOnRoute
-                                ? const Color(0xFF15803D)
-                                : const Color(0xFFB91C1C),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 18),
-
-              // Driving Corridor Pathway View
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F7FD),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFEDE8FF)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        state.from,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF140D43),
-                        ),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 14,
-                      color: primaryPurple,
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: adj.isOnRoute
-                            ? primaryPurple.withOpacity(0.12)
-                            : const Color(0xFFFEE2E2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        candidateName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color: adj.isOnRoute
-                              ? primaryPurple
-                              : const Color(0xFFB91C1C),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 14,
-                      color: primaryPurple,
-                    ),
-                    Expanded(
-                      child: Text(
-                        state.to,
-                        textAlign: TextAlign.right,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF140D43),
-                        ),
-                      ),
-                    ),
-                  ],
+              // Candidate name & subtitle
+              Text(
+                candidateName,
+                style: const TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF140D43),
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              // Route Adjustment Details (2x2 Grid)
-              Row(
-                children: [
-                  Expanded(
-                    child: _RouteStatCard(
-                      label: 'Additional Distance',
-                      value: '+${adj.additionalKm} km',
-                      isHighlight: !adj.isOnRoute,
-                      icon: Icons.add_road_rounded,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _RouteStatCard(
-                      label: 'Additional Time',
-                      value: '+${adj.additionalTimeText}',
-                      isHighlight: !adj.isOnRoute,
-                      icon: Icons.timer_outlined,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _RouteStatCard(
-                      label: 'Updated Total Route',
-                      value: '${adj.updatedTotalKm} km',
-                      isHighlight: false,
-                      icon: Icons.straighten_rounded,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _RouteStatCard(
-                      label: 'Updated Duration',
-                      value: '~${adj.updatedDuration}',
-                      isHighlight: false,
-                      icon: Icons.schedule_rounded,
-                    ),
-                  ),
-                ],
-              ),
-
-              if (!adj.isOnRoute) ...[
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF1F2),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFECDD3)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        color: Color(0xFFBE123C),
-                        size: 16,
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'This location is not on your route. Only cities along the driving corridor can be added.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFBE123C),
-                          ),
-                        ),
-                      ),
-                    ],
+              if (subtitle != null && subtitle.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF6B658C),
                   ),
                 ),
               ],
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 28),
 
-              // Action Buttons: Cancel & Confirm
+              // Action Buttons: Cancel & Add Halt
               Row(
                 children: [
                   Expanded(
@@ -517,60 +280,47 @@ class _StopoversViewState extends State<_StopoversView> {
                     flex: 2,
                     child: Container(
                       decoration: BoxDecoration(
-                        gradient: adj.isOnRoute
-                            ? const LinearGradient(
-                                colors: [Color(0xFF5D24F7), Color(0xFF3815D8)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              )
-                            : null,
-                        color: adj.isOnRoute ? null : const Color(0xFFD6CEF8),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF5D24F7), Color(0xFF3815D8)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: adj.isOnRoute
-                            ? [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF4C1CDD,
-                                  ).withOpacity(0.35),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF4C1CDD).withOpacity(0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
-                          onTap: adj.isOnRoute
-                              ? () {
-                                  context.read<CarpoolOfferRideBloc>().add(
-                                    CarpoolOfferStopoverAdded(candidateName),
-                                  );
-                                  if (lat != null && lng != null) {
-                                    CarpoolDistanceCalculator.registerGeo(
-                                      candidateName,
-                                      lat,
-                                      lng,
-                                    );
-                                  }
-                                  _onClearSearch();
-                                  Navigator.of(sheetContext).pop();
-                                }
-                              : null,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          onTap: () {
+                            context.read<CarpoolOfferRideBloc>().add(
+                              CarpoolOfferStopoverAdded(candidateName),
+                            );
+                            if (lat != null && lng != null) {
+                              CarpoolDistanceCalculator.registerGeo(
+                                candidateName,
+                                lat,
+                                lng,
+                              );
+                            }
+                            _onClearSearch();
+                            Navigator.of(sheetContext).pop();
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 14),
                             child: Center(
                               child: Text(
-                                adj.isOnRoute
-                                    ? 'Confirm & Add Stopover'
-                                    : 'Cannot Add Off-Route',
+                                'Add Halt / Stopover',
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
-                                  color: adj.isOnRoute
-                                      ? Colors.white
-                                      : Colors.white70,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
@@ -606,19 +356,30 @@ class _StopoversViewState extends State<_StopoversView> {
       body: SafeArea(
         child: BlocBuilder<CarpoolOfferRideBloc, CarpoolOfferRideState>(
           builder: (context, state) {
-            final activeStopovers = state.stopovers
+            final rawActive = state.stopovers
                 .where((s) => state.selectedStopovers.contains(s))
                 .toList();
+            final activeStopovers =
+                CarpoolDistanceCalculator.orderStopoversInCorridor(
+              start: state.from,
+              destination: state.to,
+              stopovers: rawActive.isNotEmpty
+                  ? rawActive
+                  : state.selectedStopovers.toList(),
+              startLat: state.fromLat,
+              startLng: state.fromLng,
+              destLat: state.toLat,
+              destLng: state.toLng,
+            );
 
             final totalRouteKm =
-                CarpoolDistanceCalculator.calculateMultiStopDistance(
+                CarpoolDistanceCalculator.calculateDistanceKm(
                   state.from,
                   state.to,
-                  activeStopovers,
-                  startLat: state.fromLat,
-                  startLng: state.fromLng,
-                  destLat: state.toLat,
-                  destLng: state.toLng,
+                  fromLat: state.fromLat,
+                  fromLng: state.fromLng,
+                  toLat: state.toLat,
+                  toLng: state.toLng,
                 );
             final totalDuration = CarpoolDistanceCalculator.estimateDuration(
               totalRouteKm,

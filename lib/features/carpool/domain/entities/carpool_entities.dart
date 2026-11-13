@@ -216,25 +216,20 @@ class CarpoolPublishRideParams extends Equatable {
       preferredLng: destinationLng,
     );
 
-    final fromGeo = CarpoolDistanceCalculator.findGeo(resolvedOrigin);
-    final toGeo = CarpoolDistanceCalculator.findGeo(resolvedDest);
-
     final resolvedOriginLat = originCoords.lat;
     final resolvedOriginLng = originCoords.lng;
     final resolvedOriginCity =
         originCity ??
-        fromGeo?.district ??
         (resolvedOrigin.contains(',')
-            ? resolvedOrigin.split(',').last.trim()
+            ? resolvedOrigin.split(',').first.trim()
             : resolvedOrigin);
 
     final resolvedDestLat = destCoords.lat;
     final resolvedDestLng = destCoords.lng;
     final resolvedDestCity =
         destinationCity ??
-        toGeo?.district ??
         (resolvedDest.contains(',')
-            ? resolvedDest.split(',').last.trim()
+            ? resolvedDest.split(',').first.trim()
             : resolvedDest);
 
     DateTime dtToFormat = departure;

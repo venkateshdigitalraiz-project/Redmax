@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pathway/core/constants/api_endpoints.dart';
 import 'package:pathway/core/utils/carpool_distance_calculator.dart';
 
 import '../../data/datasources/carpool_mock_data_source.dart';
@@ -24,14 +25,14 @@ class CarpoolSelectRoutePage extends StatelessWidget {
   const CarpoolSelectRoutePage({
     super.key,
     this.bloc,
-    this.apiKey = 'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU',
+    this.apiKey = ApiEndpoints.googleMapsApiKey,
   });
 
   /// Navigates to [CarpoolSelectRoutePage] sharing the given [CarpoolOfferRideBloc].
   static Future<void> show(
     BuildContext context,
     CarpoolOfferRideBloc bloc, {
-    String apiKey = 'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU',
+    String apiKey = ApiEndpoints.googleMapsApiKey,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -190,25 +191,52 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
     });
   }
 
-  void _onPlaceSelected(PlacePredictionEntity place) {
+  Future<void> _onPlaceSelected(PlacePredictionEntity place) async {
     final chosen = place.mainText.isNotEmpty
         ? place.mainText
         : place.description;
-    final coords = CarpoolDistanceCalculator.resolveCoordinates(
+
+    var lat = place.lat;
+    var lng = place.lng;
+    if ((lat == null || lng == null || (lat == 0.0 && lng == 0.0)) &&
+        place.description.trim().isNotEmpty) {
+      final fetched = await CarpoolDistanceCalculator.fetchGeocodeCoordinates(
+        place.placeId.isNotEmpty ? place.placeId : place.description,
+        isPlaceId: place.placeId.isNotEmpty && !place.placeId.startsWith('osm_'),
+      );
+      if (fetched != null) {
+        lat = fetched.lat;
+        lng = fetched.lng;
+      }
+    }
+
+    var coords = CarpoolDistanceCalculator.resolveCoordinates(
       chosen,
-      preferredLat: place.lat,
-      preferredLng: place.lng,
+      preferredLat: lat,
+      preferredLng: lng,
       defaultLat: 0.0,
       defaultLng: 0.0,
     );
+
+    if ((coords.lat == 0.0 || coords.lng == 0.0) &&
+        place.description.trim().isNotEmpty) {
+      coords = CarpoolDistanceCalculator.resolveCoordinates(
+        place.description,
+        preferredLat: lat,
+        preferredLng: lng,
+      );
+    }
+
+    final resolvedLat = coords.lat != 0.0 ? coords.lat : lat;
+    final resolvedLng = coords.lng != 0.0 ? coords.lng : lng;
 
     final bloc = context.read<CarpoolOfferRideBloc>();
 
     if (_isEditingFrom) {
       _fromController.text = chosen;
-      _fromLat = coords.lat;
-      _fromLng = coords.lng;
-      bloc.add(CarpoolOfferFromChanged(chosen, lat: coords.lat, lng: coords.lng));
+      _fromLat = resolvedLat;
+      _fromLng = resolvedLng;
+      bloc.add(CarpoolOfferFromChanged(chosen, lat: resolvedLat, lng: resolvedLng));
       if (_toController.text.trim().isEmpty ||
           _toController.text.trim().toLowerCase() == chosen.toLowerCase()) {
         _toFocus.requestFocus();
@@ -219,9 +247,9 @@ class _RapidoRouteSearchViewState extends State<_RapidoRouteSearchView> {
       }
     } else {
       _toController.text = chosen;
-      _toLat = coords.lat;
-      _toLng = coords.lng;
-      bloc.add(CarpoolOfferToChanged(chosen, lat: coords.lat, lng: coords.lng));
+      _toLat = resolvedLat;
+      _toLng = resolvedLng;
+      bloc.add(CarpoolOfferToChanged(chosen, lat: resolvedLat, lng: resolvedLng));
       FocusScope.of(context).unfocus();
       setState(() => _isSearching = false);
     }

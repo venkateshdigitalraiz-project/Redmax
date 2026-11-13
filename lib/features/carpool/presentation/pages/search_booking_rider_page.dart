@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/utils/carpool_distance_calculator.dart';
+import 'package:pathway/core/utils/carpool_distance_calculator.dart';
 import '../../../../core/utils/carpool_formatters.dart';
 import '../../../../core/utils/carpool_status.dart';
 import '../../data/repositories/search_booking_rider_repository_impl.dart';
@@ -1479,210 +1479,217 @@ class _SearchResultCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-          // Driver info & Price
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: const Color(0xFFEDE8FF),
-                child: Text(
-                  ride.driverName.isNotEmpty ? ride.driverName[0] : 'D',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF5D24F7),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // Driver info & Price
+                Row(
                   children: [
-                    Row(
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: const Color(0xFFEDE8FF),
+                      child: Text(
+                        ride.driverName.isNotEmpty ? ride.driverName[0] : 'D',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF5D24F7),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                ride.driverName,
+                                style: const TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF140D43),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 15,
+                                color: Color(0xFFFFB800),
+                              ),
+                              Text(
+                                '${ride.driverRating}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF140D43),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            ride.vehicle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF6B658C),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          ride.driverName,
+                          CarpoolFormatters.rupee(ride.pricePerSeat),
                           style: const TextStyle(
-                            fontSize: 14.5,
+                            fontSize: 17,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF140D43),
+                            color: Color(0xFF5D24F7),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.star_rounded,
-                          size: 15,
-                          color: Color(0xFFFFB800),
+                        const Text(
+                          'per seat',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: Color(0xFF8B85A8),
+                          ),
                         ),
-                        Text(
-                          '${ride.driverRating}',
+                      ],
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                // Route row: From → To (e.g. Connaught Place, New Delhi → Sindhi Camp, Jaipur)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9F8FE),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFEDE8FF)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.trip_origin_rounded,
+                        size: 13,
+                        color: Color(0xFF10B981),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${ride.from} → ${ride.to}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.w700,
                             color: Color(0xFF140D43),
                           ),
                         ),
-                      ],
-                    ),
-                    Text(
-                      ride.vehicle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF6B658C),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    CarpoolFormatters.rupee(ride.pricePerSeat),
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF5D24F7),
-                    ),
-                  ),
-                  const Text(
-                    'per seat',
-                    style: TextStyle(fontSize: 10.5, color: Color(0xFF8B85A8)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          // Route row: From → To (e.g. Connaught Place, New Delhi → Sindhi Camp, Jaipur)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9F8FE),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFEDE8FF)),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.trip_origin_rounded,
-                  size: 13,
-                  color: Color(0xFF10B981),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '${ride.from} → ${ride.to}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF140D43),
-                    ),
-                  ),
-                ),
-                if (ride.originCity != null || ride.destinationCity != null) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    '(${ride.displayFromCity} to ${ride.displayToCity})',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF6B658C),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Departure time & Seats left
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3.5,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7F5FE),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.access_time_rounded,
-                          size: 13,
-                          color: Color(0xFF5D24F7),
-                        ),
-                        const SizedBox(width: 4),
+                      if (ride.originCity != null ||
+                          ride.destinationCity != null) ...[
+                        const SizedBox(width: 6),
                         Text(
-                          CarpoolFormatters.shortDateTime(ride.departure),
+                          '(${ride.displayFromCity} to ${ride.displayToCity})',
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF140D43),
+                            color: Color(0xFF6B658C),
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                // Departure time & Seats left
+                Row(
+                  children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 3.5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFECFDF5),
+                        color: const Color(0xFFF7F5FE),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        '${ride.seats} seats available',
-                        style: const TextStyle(
-                          fontSize: 11.5,
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.access_time_rounded,
+                                size: 13,
+                                color: Color(0xFF5D24F7),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                CarpoolFormatters.shortDateTime(ride.departure),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF140D43),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${ride.seats} seats available',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Spacer(),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF5D24F7),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: onBook,
+                      child: const Text(
+                        'Book Seat',
+                        style: TextStyle(
+                          color: Colors.white,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF059669),
+                          fontSize: 13,
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-
-              const Spacer(),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5D24F7),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  elevation: 0,
-                ),
-                onPressed: onBook,
-                child: const Text(
-                  'Book Seat',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            ),
           ),
         ),
       ),

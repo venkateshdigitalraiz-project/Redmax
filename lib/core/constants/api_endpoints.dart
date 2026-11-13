@@ -1,6 +1,10 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
+  /// Google Maps & Places API Key
+  static const String googleMapsApiKey =
+      'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU';
+
   /// Base URL of the backend API
   static const String baseUrl = 'http://192.168.0.161:5001';
 

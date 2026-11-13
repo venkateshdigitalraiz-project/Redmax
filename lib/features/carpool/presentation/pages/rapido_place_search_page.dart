@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pathway/core/constants/api_endpoints.dart';
 import 'package:pathway/core/utils/carpool_distance_calculator.dart';
 
 import '../../data/datasources/places_remote_data_source.dart';
@@ -39,7 +40,7 @@ class RapidoPlaceSearchPage extends StatelessWidget {
     required this.title,
     this.initialValue = '',
     this.isPickup = true,
-    this.apiKey = 'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU',
+    this.apiKey = ApiEndpoints.googleMapsApiKey,
   });
 
   /// Static helper to open the place search screen and return the chosen location result.
@@ -48,7 +49,7 @@ class RapidoPlaceSearchPage extends StatelessWidget {
     required String title,
     String initialValue = '',
     bool isPickup = true,
-    String apiKey = 'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU',
+    String apiKey = ApiEndpoints.googleMapsApiKey,
   }) {
     return Navigator.of(context).push<CarpoolPlaceResult>(
       MaterialPageRoute(
@@ -125,20 +126,45 @@ class _RapidoPlaceSearchViewState extends State<_RapidoPlaceSearchView> {
     });
   }
 
-  void _onPlaceSelected(PlacePredictionEntity place) {
+  Future<void> _onPlaceSelected(PlacePredictionEntity place) async {
     // Return the concise main text (e.g., "Gachibowli") or full description
     final chosen = place.mainText.isNotEmpty ? place.mainText : place.description;
-    final coords = CarpoolDistanceCalculator.resolveCoordinates(
+
+    var lat = place.lat;
+    var lng = place.lng;
+    if ((lat == null || lng == null || (lat == 0.0 && lng == 0.0)) &&
+        place.description.trim().isNotEmpty) {
+      final fetched = await CarpoolDistanceCalculator.fetchGeocodeCoordinates(
+        place.placeId.isNotEmpty ? place.placeId : place.description,
+        isPlaceId: place.placeId.isNotEmpty && !place.placeId.startsWith('osm_'),
+      );
+      if (fetched != null) {
+        lat = fetched.lat;
+        lng = fetched.lng;
+      }
+    }
+
+    var coords = CarpoolDistanceCalculator.resolveCoordinates(
       chosen,
-      preferredLat: place.lat,
-      preferredLng: place.lng,
+      preferredLat: lat,
+      preferredLng: lng,
       defaultLat: 0.0,
       defaultLng: 0.0,
     );
+
+    if ((coords.lat == 0.0 || coords.lng == 0.0) &&
+        place.description.trim().isNotEmpty) {
+      coords = CarpoolDistanceCalculator.resolveCoordinates(
+        place.description,
+        preferredLat: lat,
+        preferredLng: lng,
+      );
+    }
+
     Navigator.of(context).pop(CarpoolPlaceResult(
       name: chosen,
-      lat: coords.lat,
-      lng: coords.lng,
+      lat: coords.lat != 0.0 ? coords.lat : lat,
+      lng: coords.lng != 0.0 ? coords.lng : lng,
     ));
   }
 

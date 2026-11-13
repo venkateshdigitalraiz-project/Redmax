@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import '../constants/api_endpoints.dart';
+
 /// Clean Architecture Utility to accurately calculate distances, durations, and place categories
 /// dynamically between any two locations using origin and destination geographic coordinates (Latitude & Longitude).
 ///
@@ -14,16 +16,121 @@ import 'dart:math';
 class CarpoolDistanceCalculator {
   CarpoolDistanceCalculator._();
 
-  static const String defaultApiKey = 'AIzaSyBpCA99uGvcf267xPpDxv1dWsFkOqB3RYU';
+  static const String defaultApiKey = ApiEndpoints.googleMapsApiKey;
 
   /// Configurable default route-deviation threshold in kilometers (default: 40.0 km).
   /// Any stopover adding <= this distance is considered on the route or accessible detour.
   static double defaultRouteDeviationThresholdKm = 40.0;
 
   // ══════════════════════════════════════════════════════════════════════════
-  // DYNAMIC GEO CACHE (Populated from Live Searches & GPS Coordinates)
+  // DYNAMIC GEO CACHE & INSTANT CITY RESOLVER
   // ══════════════════════════════════════════════════════════════════════════
   static final Map<String, PlaceGeoInfo> _dynamicGeoCache = {};
+
+  /// Fast coordinate resolver for high-frequency localities, towns, and cities
+  static const Map<String, ({double lat, double lng})> _knownCityCoordinates = {
+    // Current / GPS Default
+    'currentlocation': (lat: 17.3850, lng: 78.4867),
+    'mylocation': (lat: 17.3850, lng: 78.4867),
+
+    // Hyderabad Urban / Localities
+    'ameerpet': (lat: 17.4375, lng: 78.4482),
+    'khammam': (lat: 17.2473, lng: 80.1514),
+    'hyderabad': (lat: 17.3850, lng: 78.4867),
+    'secunderabad': (lat: 17.4399, lng: 78.4983),
+    'hiteccity': (lat: 17.4474, lng: 78.3762),
+    'hitec': (lat: 17.4474, lng: 78.3762),
+    'gachibowli': (lat: 17.4401, lng: 78.3489),
+    'madhapur': (lat: 17.4483, lng: 78.3915),
+    'jubileehills': (lat: 17.4319, lng: 78.4073),
+    'banjarahills': (lat: 17.4156, lng: 78.4357),
+    'kukatpally': (lat: 17.4948, lng: 78.3996),
+    'miyapur': (lat: 17.4968, lng: 78.3548),
+    'dilsukhnagar': (lat: 17.3688, lng: 78.5247),
+    'lbnagar': (lat: 17.3501, lng: 78.5511),
+    'uppal': (lat: 17.4018, lng: 78.5602),
+    'shamshabad': (lat: 17.2543, lng: 78.3976),
+    'choutuppal': (lat: 17.2491, lng: 78.9038),
+    'bhongir': (lat: 17.5113, lng: 78.8893),
+    'patancheru': (lat: 17.5333, lng: 78.2667),
+    'sangareddy': (lat: 17.6140, lng: 78.0816),
+    'shadnagar': (lat: 17.0722, lng: 78.2088),
+
+    // Telangana Regional Centers
+    'warangal': (lat: 17.9689, lng: 79.5941),
+    'hanamkonda': (lat: 18.0138, lng: 79.5630),
+    'karimnagar': (lat: 18.4386, lng: 79.1288),
+    'nizamabad': (lat: 18.6725, lng: 78.0941),
+    'suryapet': (lat: 17.1439, lng: 79.6239),
+    'nalgonda': (lat: 17.0575, lng: 79.2684),
+    'kodad': (lat: 16.9967, lng: 79.9678),
+    'miryalaguda': (lat: 16.8727, lng: 79.5631),
+    'mahabubnagar': (lat: 16.7488, lng: 77.9863),
+    'siddipet': (lat: 18.1018, lng: 78.8520),
+    'medak': (lat: 18.0469, lng: 78.2625),
+    'vikarabad': (lat: 17.3364, lng: 77.9048),
+    'kothagudem': (lat: 17.5500, lng: 80.6167),
+    'bhadrachalam': (lat: 17.6688, lng: 80.8936),
+    'jangaon': (lat: 17.7231, lng: 79.1558),
+
+    // Andhra Pradesh Major Centers
+    'vijayawada': (lat: 16.5062, lng: 80.6480),
+    'guntur': (lat: 16.3067, lng: 80.4365),
+    'tenali': (lat: 16.2437, lng: 80.6400),
+    'mangalagiri': (lat: 16.4300, lng: 80.5700),
+    'visakhapatnam': (lat: 17.6868, lng: 83.2185),
+    'vizag': (lat: 17.6868, lng: 83.2185),
+    'duvvada': (lat: 17.7051, lng: 83.1491),
+    'anakapalle': (lat: 17.6913, lng: 83.0039),
+    'rajahmundry': (lat: 17.0005, lng: 81.8040),
+    'rajahmandry': (lat: 17.0005, lng: 81.8040),
+    'rajahmundri': (lat: 17.0005, lng: 81.8040),
+    'rajahmadry': (lat: 17.0005, lng: 81.8040),
+    'rajamahendravaram': (lat: 17.0005, lng: 81.8040),
+    'tuni': (lat: 17.3573, lng: 82.5513),
+    'tumi': (lat: 17.3573, lng: 82.5513),
+    'annavaram': (lat: 17.2796, lng: 82.4042),
+    'kathipudi': (lat: 17.2272, lng: 82.3486),
+    'pithapuram': (lat: 17.1121, lng: 82.2588),
+    'samalkot': (lat: 17.0514, lng: 82.1706),
+    'peddapuram': (lat: 17.0784, lng: 82.1378),
+    'ravulapalem': (lat: 16.7516, lng: 81.8436),
+    'gannavaram': (lat: 16.5422, lng: 80.8035),
+    'hanumanjunction': (lat: 16.6347, lng: 80.9575),
+    'payakaraopeta': (lat: 17.3468, lng: 82.5621),
+    'nakkapalli': (lat: 17.4116, lng: 82.6845),
+    'yelamanchili': (lat: 17.5513, lng: 82.8596),
+    'gajuwaka': (lat: 17.6905, lng: 83.2085),
+    'kakinada': (lat: 16.9891, lng: 82.2475),
+    'eluru': (lat: 16.7107, lng: 81.0952),
+    'bhimavaram': (lat: 16.5449, lng: 81.5212),
+    'tanuku': (lat: 16.7562, lng: 81.6811),
+    'tadepalligudem': (lat: 16.8143, lng: 81.5267),
+    'palakollu': (lat: 16.5190, lng: 81.7336),
+    'narasapuram': (lat: 16.4414, lng: 81.6966),
+    'tirupati': (lat: 13.6288, lng: 79.4192),
+    'nellore': (lat: 14.4426, lng: 79.9865),
+    'ongole': (lat: 15.5057, lng: 80.0499),
+    'kurnool': (lat: 15.8281, lng: 78.0373),
+    'anantapur': (lat: 14.6819, lng: 77.6006),
+    'kadapa': (lat: 14.4673, lng: 78.8242),
+    'machilipatnam': (lat: 16.1876, lng: 81.1389),
+    'gudivada': (lat: 16.4350, lng: 80.9980),
+    'bapatla': (lat: 15.9042, lng: 80.4675),
+    'chirala': (lat: 15.8246, lng: 80.3522),
+    'narasaraopet': (lat: 16.2360, lng: 80.0499),
+    'chilakaluripet': (lat: 16.0892, lng: 80.1672),
+
+    // Metros / Inter-State
+    'bengaluru': (lat: 12.9716, lng: 77.5946),
+    'bangalore': (lat: 12.9716, lng: 77.5946),
+    'chennai': (lat: 13.0827, lng: 80.2707),
+    'mumbai': (lat: 19.0760, lng: 72.8777),
+    'pune': (lat: 18.5204, lng: 73.8567),
+    'delhi': (lat: 28.6139, lng: 77.2090),
+    'newdelhi': (lat: 28.6139, lng: 77.2090),
+    'jaipur': (lat: 26.9124, lng: 75.7873),
+  };
 
   /// Compatibility getter for any existing references
   static Map<String, PlaceGeoInfo> get placeGeoDatabase => _dynamicGeoCache;
@@ -67,31 +174,36 @@ class CarpoolDistanceCalculator {
     double? toLat,
     double? toLng,
   }) {
-    final f = _sanitizeKey(from);
-    final t = _sanitizeKey(to);
+    if (from.trim().isEmpty || to.trim().isEmpty) return 0;
+    if (from.trim().toLowerCase() == to.trim().toLowerCase()) return 0;
 
-    // 1. Resolve coordinates from arguments or dynamic cache
-    final geoFrom = _findGeo(f);
-    final geoTo = _findGeo(t);
+    // 1. Resolve coordinates reliably (checks GPS, known cities, substrings, words, dynamic cache)
+    final fromCoords = resolveCoordinates(
+      from,
+      preferredLat: (fromLat != null && fromLat != 0.0) ? fromLat : null,
+      preferredLng: (fromLng != null && fromLng != 0.0) ? fromLng : null,
+    );
+    final toCoords = resolveCoordinates(
+      to,
+      preferredLat: (toLat != null && toLat != 0.0) ? toLat : null,
+      preferredLng: (toLng != null && toLng != 0.0) ? toLng : null,
+    );
 
-    final fLat = (fromLat != null && fromLat != 0.0) ? fromLat : geoFrom?.lat;
-    final fLng = (fromLng != null && fromLng != 0.0) ? fromLng : geoFrom?.lng;
-    final tLat = (toLat != null && toLat != 0.0) ? toLat : geoTo?.lat;
-    final tLng = (toLng != null && toLng != 0.0) ? toLng : geoTo?.lng;
+    final fLat = fromCoords.lat;
+    final fLng = fromCoords.lng;
+    final tLat = toCoords.lat;
+    final tLng = toCoords.lng;
 
-    // 2. Compute dynamic distance if coordinates are present
-    if (fLat != null && fLng != null && tLat != null && tLng != null &&
-        fLat != 0.0 && fLng != 0.0 && tLat != 0.0 && tLng != 0.0) {
+    // 2. Compute dynamic geodesic distance with 1.22x road winding factor if valid
+    if (fLat >= 6.5 && fLat <= 38.0 && fLng >= 68.0 && fLng <= 98.0 &&
+        tLat >= 6.5 && tLat <= 38.0 && tLng >= 68.0 && tLng <= 98.0) {
       if ((fLat - tLat).abs() < 0.0001 && (fLng - tLng).abs() < 0.0001) {
         return 0;
       }
       final straight = _haversine(fLat, fLng, tLat, tLng);
-      // Realistic road winding factor (1.22x) for highways and urban roads
       final roadKm = (straight * 1.22).round();
       return roadKm < 1 ? 1 : roadKm;
     }
-
-    if (f.isNotEmpty && t.isNotEmpty && f == t) return 0;
 
     return 0;
   }
@@ -108,23 +220,34 @@ class CarpoolDistanceCalculator {
     double? toLng,
     String apiKey = defaultApiKey,
   }) async {
+    final fromCoords = resolveCoordinates(
+      from,
+      preferredLat: (fromLat != null && fromLat != 0.0) ? fromLat : null,
+      preferredLng: (fromLng != null && fromLng != 0.0) ? fromLng : null,
+    );
+    final toCoords = resolveCoordinates(
+      to,
+      preferredLat: (toLat != null && toLat != 0.0) ? toLat : null,
+      preferredLng: (toLng != null && toLng != 0.0) ? toLng : null,
+    );
+
     final fallbackKm = calculateDistanceKm(
       from,
       to,
-      fromLat: fromLat,
-      fromLng: fromLng,
-      toLat: toLat,
-      toLng: toLng,
+      fromLat: fromCoords.lat,
+      fromLng: fromCoords.lng,
+      toLat: toCoords.lat,
+      toLng: toCoords.lng,
     );
     final fallbackDuration = estimateDuration(fallbackKm);
 
     try {
-      final originParam = (fromLat != null && fromLng != null && fromLat != 0.0 && fromLng != 0.0)
-          ? '$fromLat,$fromLng'
-          : from;
-      final destParam = (toLat != null && toLng != null && toLat != 0.0 && toLng != 0.0)
-          ? '$toLat,$toLng'
-          : to;
+      final originParam = (fromCoords.lat >= 6.5 && fromCoords.lng >= 68.0)
+          ? '${fromCoords.lat},${fromCoords.lng}'
+          : (from.contains('India') ? from : '$from, India');
+      final destParam = (toCoords.lat >= 6.5 && toCoords.lng >= 68.0)
+          ? '${toCoords.lat},${toCoords.lng}'
+          : (to.contains('India') ? to : '$to, India');
 
       if (originParam.trim().isEmpty || destParam.trim().isEmpty) {
         return DistanceResult(
@@ -168,9 +291,12 @@ class CarpoolDistanceCalculator {
               final String durationText =
                   durationMap?['text'] as String? ?? fallbackDuration;
 
+              // Discard international/absurd geocoding anomalies (> 3800 km)
+              final safeKm = (km > 0 && km <= 3800) ? km : fallbackKm;
+
               return DistanceResult(
-                distanceKm: km > 0 ? km : fallbackKm,
-                durationText: durationText,
+                distanceKm: safeKm > 0 ? safeKm : fallbackKm,
+                durationText: safeKm <= 3800 ? durationText : fallbackDuration,
                 isLive: true,
               );
             }
@@ -226,6 +352,65 @@ class CarpoolDistanceCalculator {
     return null;
   }
 
+  /// Fetches exact GPS coordinates for any location string or placeId via Google Geocoding API
+  static Future<({double lat, double lng})?> fetchGeocodeCoordinates(
+    String locationOrPlaceId, {
+    bool isPlaceId = false,
+    String apiKey = defaultApiKey,
+  }) async {
+    final clean = locationOrPlaceId.trim();
+    if (clean.isEmpty) return null;
+
+    final sanitized = _sanitizeKey(clean);
+    if (_knownCityCoordinates.containsKey(sanitized)) {
+      final c = _knownCityCoordinates[sanitized]!;
+      return (lat: c.lat, lng: c.lng);
+    }
+    for (final part in clean.split(',')) {
+      final sPart = _sanitizeKey(part);
+      if (_knownCityCoordinates.containsKey(sPart)) {
+        final c = _knownCityCoordinates[sPart]!;
+        return (lat: c.lat, lng: c.lng);
+      }
+    }
+
+    final cached = findGeo(clean);
+    if (cached != null && cached.lat >= 6.5 && cached.lat <= 38.0) {
+      return (lat: cached.lat, lng: cached.lng);
+    }
+
+    try {
+      final queryParams = isPlaceId
+          ? {'place_id': clean, 'key': apiKey}
+          : {'address': clean, 'key': apiKey, 'region': 'in'};
+      final uri = Uri.https('maps.googleapis.com', '/maps/api/geocode/json', queryParams);
+
+      final client = HttpClient();
+      final request = await client.getUrl(uri).timeout(const Duration(seconds: 4));
+      final response = await request.close().timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final body = await response.transform(utf8.decoder).join();
+        final json = jsonDecode(body) as Map<String, dynamic>;
+        final results = json['results'] as List<dynamic>?;
+        if (results != null && results.isNotEmpty) {
+          final first = results.first as Map<String, dynamic>;
+          final geom = first['geometry'] as Map<String, dynamic>?;
+          final loc = geom?['location'] as Map<String, dynamic>?;
+          final lat = (loc?['lat'] as num?)?.toDouble();
+          final lng = (loc?['lng'] as num?)?.toDouble();
+
+          if (lat != null && lng != null && lat >= 6.5 && lat <= 38.0 && lng >= 68.0 && lng <= 98.0) {
+            registerGeo(clean, lat, lng);
+            return (lat: lat, lng: lng);
+          }
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
   /// Single source of truth for resolving Lat/Lng coordinates for any location
   static ({double lat, double lng}) resolveCoordinates(
     String place, {
@@ -246,9 +431,40 @@ class CarpoolDistanceCalculator {
       return (lat: preferredLat, lng: preferredLng);
     }
 
-    // 2. Otherwise look up in dynamically cached places (registered via Google Places live search)
+    // 2. Look up in instant known cities / localities
     final clean = place.trim();
     if (clean.isNotEmpty) {
+      final sanitized = _sanitizeKey(clean);
+      if (_knownCityCoordinates.containsKey(sanitized)) {
+        final c = _knownCityCoordinates[sanitized]!;
+        return (lat: c.lat, lng: c.lng);
+      }
+      for (final part in clean.split(',')) {
+        final sPart = _sanitizeKey(part);
+        if (_knownCityCoordinates.containsKey(sPart)) {
+          final c = _knownCityCoordinates[sPart]!;
+          return (lat: c.lat, lng: c.lng);
+        }
+      }
+
+      // Check substring matches in known city coordinates
+      for (final entry in _knownCityCoordinates.entries) {
+        if (entry.key.length >= 4 &&
+            (sanitized.contains(entry.key) || entry.key.contains(sanitized))) {
+          return (lat: entry.value.lat, lng: entry.value.lng);
+        }
+      }
+
+      // Check individual words
+      final words = clean.toLowerCase().split(RegExp(r'[^a-z0-9]+'));
+      for (final word in words) {
+        if (word.length >= 4 && _knownCityCoordinates.containsKey(word)) {
+          final c = _knownCityCoordinates[word]!;
+          return (lat: c.lat, lng: c.lng);
+        }
+      }
+
+      // 3. Otherwise look up in dynamically cached places (registered via Google Places live search)
       final geo = findGeo(clean);
       if (geo != null &&
           geo.lat >= 6.5 &&
@@ -259,7 +475,7 @@ class CarpoolDistanceCalculator {
       }
     }
 
-    // 3. Fallback to default
+    // 4. Fallback to default
     return (lat: defaultLat ?? 0.0, lng: defaultLng ?? 0.0);
   }
 
@@ -307,6 +523,9 @@ class CarpoolDistanceCalculator {
     return ((pointLat - startLat) * dLat + (pointLng - startLng) * dLng) / lenSq;
   }
 
+  static double haversine(double lat1, double lon1, double lat2, double lon2) =>
+      _haversine(lat1, lon1, lat2, lon2);
+
   static List<String> orderStopoversInCorridor({
     required String start,
     required String destination,
@@ -318,29 +537,52 @@ class CarpoolDistanceCalculator {
   }) {
     if (stopovers.length <= 1) return List.from(stopovers);
 
-    final sGeo = findGeo(start);
-    final dGeo = findGeo(destination);
-    final sLat = startLat ?? sGeo?.lat;
-    final sLng = startLng ?? sGeo?.lng;
-    final dLat = destLat ?? dGeo?.lat;
-    final dLng = destLng ?? dGeo?.lng;
+    final sCoords = resolveCoordinates(
+      start,
+      preferredLat: (startLat != null && startLat != 0.0) ? startLat : null,
+      preferredLng: (startLng != null && startLng != 0.0) ? startLng : null,
+    );
+    final dCoords = resolveCoordinates(
+      destination,
+      preferredLat: (destLat != null && destLat != 0.0) ? destLat : null,
+      preferredLng: (destLng != null && destLng != 0.0) ? destLng : null,
+    );
 
-    if (sLat == null || sLng == null || dLat == null || dLng == null) {
+    final sLat = sCoords.lat;
+    final sLng = sCoords.lng;
+    final dLat = dCoords.lat;
+    final dLng = dCoords.lng;
+
+    final isStartValid =
+        sLat >= 6.5 && sLat <= 38.0 && sLng >= 68.0 && sLng <= 98.0;
+    final isDestValid =
+        dLat >= 6.5 && dLat <= 38.0 && dLng >= 68.0 && dLng <= 98.0;
+
+    if (!isStartValid && !isDestValid) {
       return List.from(stopovers);
     }
 
     final stopoverProgress = <String, double>{};
     for (final stop in stopovers) {
-      final geo = findGeo(stop);
-      if (geo != null) {
+      final pCoords = resolveCoordinates(stop);
+      final isPointValid = pCoords.lat >= 6.5 &&
+          pCoords.lat <= 38.0 &&
+          pCoords.lng >= 68.0 &&
+          pCoords.lng <= 98.0;
+
+      if (isStartValid && isDestValid && isPointValid) {
         stopoverProgress[stop] = calculateCorridorProgression(
           startLat: sLat,
           startLng: sLng,
           destLat: dLat,
           destLng: dLng,
-          pointLat: geo.lat,
-          pointLng: geo.lng,
+          pointLat: pCoords.lat,
+          pointLng: pCoords.lng,
         );
+      } else if (isStartValid && isPointValid) {
+        stopoverProgress[stop] = _haversine(sLat, sLng, pCoords.lat, pCoords.lng);
+      } else if (isDestValid && isPointValid) {
+        stopoverProgress[stop] = -_haversine(dLat, dLng, pCoords.lat, pCoords.lng);
       } else {
         final d1 = calculateDistanceKm(start, stop, fromLat: sLat, fromLng: sLng);
         final d2 = calculateDistanceKm(stop, destination, toLat: dLat, toLng: dLng);
@@ -350,7 +592,8 @@ class CarpoolDistanceCalculator {
     }
 
     final sorted = List<String>.from(stopovers)
-      ..sort((a, b) => (stopoverProgress[a] ?? 0.0).compareTo(stopoverProgress[b] ?? 0.0));
+      ..sort((a, b) =>
+          (stopoverProgress[a] ?? 0.0).compareTo(stopoverProgress[b] ?? 0.0));
     return sorted;
   }
 
@@ -371,12 +614,20 @@ class CarpoolDistanceCalculator {
       registerGeo(newStopover, candidateLat, candidateLng);
     }
 
-    final sGeo = findGeo(start);
-    final dGeo = findGeo(destination);
-    final fLat = startLat ?? sGeo?.lat;
-    final fLng = startLng ?? sGeo?.lng;
-    final tLat = destLat ?? dGeo?.lat;
-    final tLng = destLng ?? dGeo?.lng;
+    final sCoords = resolveCoordinates(
+      start,
+      preferredLat: (startLat != null && startLat != 0.0) ? startLat : null,
+      preferredLng: (startLng != null && startLng != 0.0) ? startLng : null,
+    );
+    final dCoords = resolveCoordinates(
+      destination,
+      preferredLat: (destLat != null && destLat != 0.0) ? destLat : null,
+      preferredLng: (destLng != null && destLng != 0.0) ? destLng : null,
+    );
+    final fLat = sCoords.lat;
+    final fLng = sCoords.lng;
+    final tLat = dCoords.lat;
+    final tLng = dCoords.lng;
 
     final baseStopovers = currentStopovers
         .where((s) => s.toLowerCase().trim() != newStopover.toLowerCase().trim())
@@ -507,31 +758,41 @@ class CarpoolDistanceCalculator {
       destLat: destLat,
       destLng: destLng,
     );
+    final sCoords = resolveCoordinates(
+      start,
+      preferredLat: (startLat != null && startLat != 0.0) ? startLat : null,
+      preferredLng: (startLng != null && startLng != 0.0) ? startLng : null,
+    );
+    final dCoords = resolveCoordinates(
+      destination,
+      preferredLat: (destLat != null && destLat != 0.0) ? destLat : null,
+      preferredLng: (destLng != null && destLng != 0.0) ? destLng : null,
+    );
     int total = 0;
     String prev = start;
-    double? prevLat = startLat;
-    double? prevLng = startLng;
+    double? prevLat = sCoords.lat;
+    double? prevLng = sCoords.lng;
     for (final stop in ordered) {
-      final stopGeo = findGeo(stop);
+      final stopCoords = resolveCoordinates(stop);
       total += calculateDistanceKm(
         prev,
         stop,
         fromLat: prevLat,
         fromLng: prevLng,
-        toLat: stopGeo?.lat,
-        toLng: stopGeo?.lng,
+        toLat: stopCoords.lat,
+        toLng: stopCoords.lng,
       );
       prev = stop;
-      prevLat = stopGeo?.lat;
-      prevLng = stopGeo?.lng;
+      prevLat = stopCoords.lat;
+      prevLng = stopCoords.lng;
     }
     total += calculateDistanceKm(
       prev,
       destination,
       fromLat: prevLat,
       fromLng: prevLng,
-      toLat: destLat,
-      toLng: destLng,
+      toLat: dCoords.lat,
+      toLng: dCoords.lng,
     );
     return total;
   }
@@ -607,15 +868,28 @@ class CarpoolDistanceCalculator {
     double? destLat,
     double? destLng,
   }) {
-    final sGeo = findGeo(start);
-    final dGeo = findGeo(destination);
+    final sCoords = resolveCoordinates(
+      start,
+      preferredLat: (startLat != null && startLat != 0.0) ? startLat : null,
+      preferredLng: (startLng != null && startLng != 0.0) ? startLng : null,
+    );
+    final dCoords = resolveCoordinates(
+      destination,
+      preferredLat: (destLat != null && destLat != 0.0) ? destLat : null,
+      preferredLng: (destLng != null && destLng != 0.0) ? destLng : null,
+    );
 
-    final fromLat = startLat ?? sGeo?.lat;
-    final fromLng = startLng ?? sGeo?.lng;
-    final toLat = destLat ?? dGeo?.lat;
-    final toLng = destLng ?? dGeo?.lng;
+    final fromLat = sCoords.lat;
+    final fromLng = sCoords.lng;
+    final toLat = dCoords.lat;
+    final toLng = dCoords.lng;
 
-    if (fromLat == null || fromLng == null || toLat == null || toLng == null) {
+    final isFromValid =
+        fromLat >= 6.5 && fromLat <= 38.0 && fromLng >= 68.0 && fromLng <= 98.0;
+    final isToValid =
+        toLat >= 6.5 && toLat <= 38.0 && toLng >= 68.0 && toLng <= 98.0;
+
+    if (!isFromValid || !isToValid) {
       return const [];
     }
 
@@ -767,12 +1041,20 @@ class CarpoolDistanceCalculator {
     final lat = candidateLat ?? cGeo?.lat;
     final lng = candidateLng ?? cGeo?.lng;
 
-    final sGeo = findGeo(start);
-    final dGeo = findGeo(destination);
-    final fLat = startLat ?? sGeo?.lat;
-    final fLng = startLng ?? sGeo?.lng;
-    final tLat = destLat ?? dGeo?.lat;
-    final tLng = destLng ?? dGeo?.lng;
+    final sCoords = resolveCoordinates(
+      start,
+      preferredLat: (startLat != null && startLat != 0.0) ? startLat : null,
+      preferredLng: (startLng != null && startLng != 0.0) ? startLng : null,
+    );
+    final dCoords = resolveCoordinates(
+      destination,
+      preferredLat: (destLat != null && destLat != 0.0) ? destLat : null,
+      preferredLng: (destLng != null && destLng != 0.0) ? destLng : null,
+    );
+    final fLat = sCoords.lat;
+    final fLng = sCoords.lng;
+    final tLat = dCoords.lat;
+    final tLng = dCoords.lng;
 
     bool isPolylineClose = true;
     if (lat != null &&
@@ -854,6 +1136,7 @@ class CarpoolDistanceCalculator {
   }
 
   static PlaceGeoInfo? _findGeo(String key) {
+    if (key.isEmpty) return null;
     if (_dynamicGeoCache.containsKey(key)) return _dynamicGeoCache[key];
 
     for (final entry in _dynamicGeoCache.entries) {
@@ -862,6 +1145,35 @@ class CarpoolDistanceCalculator {
         return entry.value;
       }
     }
+
+    if (_knownCityCoordinates.containsKey(key)) {
+      final c = _knownCityCoordinates[key]!;
+      final formattedName = '${key[0].toUpperCase()}${key.substring(1)}';
+      return PlaceGeoInfo(
+        name: formattedName,
+        lat: c.lat,
+        lng: c.lng,
+        type: 'City',
+        district: '',
+        state: 'India',
+      );
+    }
+
+    for (final entry in _knownCityCoordinates.entries) {
+      if (entry.key.length >= 4 &&
+          (key.contains(entry.key) || entry.key.contains(key))) {
+        final formattedName = '${entry.key[0].toUpperCase()}${entry.key.substring(1)}';
+        return PlaceGeoInfo(
+          name: formattedName,
+          lat: entry.value.lat,
+          lng: entry.value.lng,
+          type: 'City',
+          district: '',
+          state: 'India',
+        );
+      }
+    }
+
     return null;
   }
 

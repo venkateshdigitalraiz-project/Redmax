@@ -5,10 +5,8 @@ import 'package:pathway/core/utils/carpool_formatters.dart';
 
 import '../../data/datasources/carpool_mock_data_source.dart';
 import '../../data/repositories/carpool_repository_impl.dart';
-import '../../domain/entities/carpool_entities.dart';
 import '../../domain/usecases/carpool_usecases.dart';
-import '../bloc/carpool_home_bloc.dart';
-import '../bloc/carpool_nav_cubit.dart';
+
 import '../bloc/carpool_offer_ride_bloc.dart';
 import '../widgets/carpool_route_selector_card.dart';
 import 'search_booking_rider_page.dart';
@@ -124,15 +122,29 @@ class _OfferRideView extends StatelessWidget {
       caseSensitive: false,
     ).firstMatch(raw);
     if (cityMatch != null) {
-      return cityMatch.group(1)?.replaceAll(RegExp(r'''[{}"]'''), '').trim() ?? raw;
+      return cityMatch.group(1)?.replaceAll(RegExp(r'''[{}"]'''), '').trim() ??
+          raw;
     }
     raw = raw
-        .replaceAll(RegExp(r',?\s*(?:lat|lng|latitude|longitude)\s*[:=][^,}]+', caseSensitive: false), '')
-        .replaceAll(RegExp(r'^(?:address|place|name)\s*[:=]\s*', caseSensitive: false), '')
+        .replaceAll(
+          RegExp(
+            r',?\s*(?:lat|lng|latitude|longitude)\s*[:=][^,}]+',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'^(?:address|place|name)\s*[:=]\s*', caseSensitive: false),
+          '',
+        )
         .replaceAll(RegExp(r'''[{}"]'''), '')
         .trim();
     if (raw.contains(',')) {
-      final parts = raw.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+      final parts = raw
+          .split(',')
+          .map((p) => p.trim())
+          .where((p) => p.isNotEmpty)
+          .toList();
       if (parts.isNotEmpty) {
         return parts.first;
       }
@@ -813,20 +825,28 @@ class _OfferRideView extends StatelessWidget {
 
                                   final originCoords =
                                       CarpoolDistanceCalculator.resolveCoordinates(
-                                    s.from,
-                                    preferredLat: s.fromLat != 0.0 ? s.fromLat : null,
-                                    preferredLng: s.fromLng != 0.0 ? s.fromLng : null,
-                                    defaultLat: s.fromLat,
-                                    defaultLng: s.fromLng,
-                                  );
+                                        s.from,
+                                        preferredLat: s.fromLat != 0.0
+                                            ? s.fromLat
+                                            : null,
+                                        preferredLng: s.fromLng != 0.0
+                                            ? s.fromLng
+                                            : null,
+                                        defaultLat: s.fromLat,
+                                        defaultLng: s.fromLng,
+                                      );
                                   final destCoords =
                                       CarpoolDistanceCalculator.resolveCoordinates(
-                                    s.to,
-                                    preferredLat: s.toLat != 0.0 ? s.toLat : null,
-                                    preferredLng: s.toLng != 0.0 ? s.toLng : null,
-                                    defaultLat: s.toLat,
-                                    defaultLng: s.toLng,
-                                  );
+                                        s.to,
+                                        preferredLat: s.toLat != 0.0
+                                            ? s.toLat
+                                            : null,
+                                        preferredLng: s.toLng != 0.0
+                                            ? s.toLng
+                                            : null,
+                                        defaultLat: s.toLat,
+                                        defaultLng: s.toLng,
+                                      );
 
                                   bloc.add(
                                     CarpoolOfferFromChanged(
